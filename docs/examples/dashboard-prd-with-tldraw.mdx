@@ -1,0 +1,179 @@
+---
+title: Analytics Dashboard PRD
+version: 1.0.0
+author: Product Team
+components:
+  - Dashboard
+  - MetricsCard  
+  - Chart
+  - Filter
+---
+
+import { Wireframe, VisualAnnotation, Brainstorm, FlowDiagram, AcceptanceCriteriaBoard } from '../../apps/tldr-board/src/mdx-components'
+
+# Analytics Dashboard PRD
+
+## 1. Initial Brainstorming
+
+<Brainstorm 
+  topic="Analytics Dashboard Features"
+  participants={["PM", "Designer", "Engineer", "Data Analyst"]}
+  onExport={(data) => {
+    // Save brainstorming session
+    console.log('Brainstorming results:', data)
+  }}
+/>
+
+## 2. User Flow
+
+<FlowDiagram
+  title="Dashboard User Journey"
+  type="user-flow"
+  onAnalyze={(flow) => {
+    // Extract acceptance criteria from flow
+    generateAcceptanceCriteria(flow)
+  }}
+/>
+
+## 3. Wireframe
+
+<Wireframe
+  id="dashboard-wireframe"
+  prompt="Create a dashboard layout with header, sidebar navigation, metrics cards, and charts"
+  height={800}
+  onGenerate={(shapes) => {
+    // Convert wireframe to React components
+    generateComponentsFromWireframe(shapes)
+  }}
+/>
+
+## 4. Detailed Design with Annotations
+
+<VisualAnnotation>
+  <Dashboard 
+    metrics={[
+      { label: "Total Users", value: "1,234", change: "+12%" },
+      { label: "Revenue", value: "$45.2k", change: "+8%" },
+      { label: "Conversion", value: "3.2%", change: "-2%" }
+    ]}
+  />
+</VisualAnnotation>
+
+👆 *Click "Show Annotations" to add visual notes directly on the component*
+
+## 5. Acceptance Criteria
+
+<AcceptanceCriteriaBoard
+  criteria={[
+    {
+      id: "AC-001",
+      given: "User is on the dashboard",
+      when: "Page loads",
+      then: "Metrics are displayed within 2 seconds"
+    },
+    {
+      id: "AC-002", 
+      given: "User clicks date filter",
+      when: "Selecting a date range",
+      then: "All charts update with filtered data"
+    },
+    {
+      id: "AC-003",
+      given: "API returns an error",
+      when: "Loading metrics fails", 
+      then: "Error message is shown with retry option"
+    }
+  ]}
+  onUpdate={(updatedCriteria) => {
+    // Save updated acceptance criteria
+    updatePRDCriteria(updatedCriteria)
+  }}
+/>
+
+## 6. Data Flow Diagram
+
+<FlowDiagram
+  title="Dashboard Data Architecture"
+  type="data-flow"
+  onAnalyze={(flow) => {
+    // Generate data schema from flow
+    extractDataSchema(flow)
+  }}
+/>
+
+## 7. Interactive Prototype
+
+The wireframe above can be converted into this working prototype:
+
+<Dashboard>
+  <MetricsRow>
+    <MetricCard 
+      title="Total Users" 
+      value={1234} 
+      change={12} 
+      trend="up" 
+    />
+    <MetricCard 
+      title="Revenue" 
+      value={45200} 
+      change={8} 
+      trend="up" 
+      format="currency" 
+    />
+    <MetricCard 
+      title="Conversion Rate" 
+      value={3.2} 
+      change={-2} 
+      trend="down" 
+      format="percentage" 
+    />
+  </MetricsRow>
+  
+  <ChartsGrid>
+    <Chart 
+      type="line" 
+      title="User Growth" 
+      data={userGrowthData} 
+    />
+    <Chart 
+      type="bar" 
+      title="Revenue by Product" 
+      data={revenueData} 
+    />
+  </ChartsGrid>
+</Dashboard>
+
+## 8. Technical Requirements
+
+Based on the wireframes and flows above, here are the extracted requirements:
+
+### API Endpoints
+- `GET /api/metrics` - Fetch dashboard metrics
+- `GET /api/charts/:type` - Fetch chart data
+- `GET /api/filters` - Get available filters
+
+### Data Schema
+```typescript
+// Auto-generated from wireframe analysis
+interface DashboardData {
+  metrics: Metric[]
+  charts: ChartData[]
+  filters: Filter[]
+  timeRange: TimeRange
+}
+
+interface Metric {
+  id: string
+  label: string
+  value: number
+  change: number
+  trend: 'up' | 'down' | 'stable'
+}
+```
+
+## 9. Next Steps
+
+1. **Convert Wireframe to Code**: Use the "Generate Component" button on the wireframe
+2. **Add Interactions**: Draw interaction flows on the visual annotation layer
+3. **Test Acceptance Criteria**: Run automated tests against the criteria board
+4. **Export to Figma**: Export the wireframe for detailed design work
