@@ -21,6 +21,18 @@ export interface ApiKeys {
   openai: string
   anthropic: string
   activeProvider: 'openai' | 'anthropic'
+  selectedModel?: string
+}
+
+export interface ModelConfig {
+  id: string
+  name: string
+  provider: 'openai' | 'anthropic'
+  contextWindow: number
+  outputTokens: number
+  bestFor: string[]
+  costPer1kTokens: { input: number; output: number }
+  available: boolean
 }
 
 export interface PRDTemplate {

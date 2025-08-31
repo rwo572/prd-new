@@ -5,7 +5,7 @@ import ChatInterface from '@/components/ChatInterface'
 import MarkdownEditor from '@/components/MarkdownEditor'
 import ApiKeyManager from '@/components/ApiKeyManager'
 import GitHubIntegration from '@/components/GitHubIntegration'
-import TemplateSelector from '@/components/TemplateSelector'
+import ModelSelector from '@/components/model-selector'
 import { FileText, Settings, Github, MessageSquare, Download, Save } from 'lucide-react'
 import { PRDContext, Message } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
@@ -24,6 +24,13 @@ export default function Home() {
     activeProvider: 'openai' as 'openai' | 'anthropic'
   })
   const [githubConnected, setGithubConnected] = useState(false)
+  const [demoMode, setDemoMode] = useState(false)
+
+  // Check if we're in demo mode (no API keys)
+  useEffect(() => {
+    const isDemo = !apiKeys.openai && !apiKeys.anthropic
+    setDemoMode(isDemo)
+  }, [apiKeys])
 
   const handleSendMessage = async (content: string) => {
     const newMessage: Message = {
@@ -71,17 +78,19 @@ export default function Home() {
     }
   }
 
-  const handleTemplateSelect = (template: string) => {
-    setPrdContent(template)
-    setActiveTab('editor')
-  }
-
   const handleSavePRD = async () => {
     await savePRDLocally(currentProject, prdContent)
   }
 
   const handleExportPRD = () => {
     exportPRD(currentProject, prdContent)
+  }
+
+  const handleModelChange = (modelId: string) => {
+    setApiKeys(prev => ({
+      ...prev,
+      selectedModel: modelId
+    }))
   }
 
   return (
@@ -166,6 +175,17 @@ export default function Home() {
               />
             </div>
             <div className="flex items-center gap-4">
+              {demoMode && (
+                <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                  Demo Mode - No API Key Required
+                </span>
+              )}
+              {!demoMode && (
+                <ModelSelector 
+                  apiKeys={apiKeys}
+                  onModelChange={handleModelChange}
+                />
+              )}
               <span className="text-sm text-gray-500">
                 {messages.length} messages • {Math.ceil(prdContent.length / 1000)}k chars
               </span>
@@ -176,19 +196,11 @@ export default function Home() {
         {/* Content Area */}
         <div className="flex-1 overflow-hidden">
           {activeTab === 'chat' && (
-            <div className="h-full flex">
-              <div className="flex-1">
-                <ChatInterface
-                  messages={messages}
-                  onSendMessage={handleSendMessage}
-                  isGenerating={isGenerating}
-                />
-              </div>
-              <div className="w-80 border-l border-gray-200 bg-white p-4">
-                <h3 className="font-semibold mb-4">Quick Start</h3>
-                <TemplateSelector onSelectTemplate={handleTemplateSelect} />
-              </div>
-            </div>
+            <ChatInterface
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isGenerating={isGenerating}
+            />
           )}
 
           {activeTab === 'editor' && (
