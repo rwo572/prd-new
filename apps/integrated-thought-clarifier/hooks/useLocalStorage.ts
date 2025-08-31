@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
+  // Initialize with localStorage value if available, otherwise use initialValue
   const [storedValue, setStoredValue] = useState<T>(() => {
     if (typeof window === 'undefined') {
       return initialValue

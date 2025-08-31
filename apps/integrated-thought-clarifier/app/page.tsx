@@ -1,30 +1,40 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import ChatInterface from '@/components/ChatInterface'
 import MarkdownEditor from '@/components/MarkdownEditor'
 import ApiKeyManager from '@/components/ApiKeyManager'
 import GitHubIntegration from '@/components/GitHubIntegration'
 import ModelSelector from '@/components/model-selector'
-import { FileText, Settings, Github, MessageSquare, Download, Save } from 'lucide-react'
+import { FileText, Settings, Github, MessageSquare, Download, Save, Code } from 'lucide-react'
 import { PRDContext, Message } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { generatePRD } from '@/lib/ai-service'
 import { savePRDLocally, exportPRD } from '@/lib/storage'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'editor' | 'settings'>('chat')
-  const [messages, setMessages] = useState<Message[]>([])
-  const [prdContent, setPrdContent] = useState<string>('')
+  const [activeTab, setActiveTab] = useState<'chat' | 'prd' | 'code' | 'settings'>('chat')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [currentProject, setCurrentProject] = useState<string>('untitled')
+  const [githubConnected, setGithubConnected] = useState(false)
+  const [demoMode, setDemoMode] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+  const [prototypeCode, setPrototypeCode] = useLocalStorage<string>('prototype-code', '')
+  
+  // Use localStorage hooks - will only work on client
+  const [messages, setMessages] = useLocalStorage<Message[]>('prd-messages', [])
+  const [prdContent, setPrdContent] = useLocalStorage<string>('prd-content', '')
+  const [currentProject, setCurrentProject] = useLocalStorage<string>('prd-project-name', 'untitled')
   const [apiKeys, setApiKeys] = useLocalStorage('api-keys', {
     openai: '',
     anthropic: '',
     activeProvider: 'openai' as 'openai' | 'anthropic'
   })
-  const [githubConnected, setGithubConnected] = useState(false)
-  const [demoMode, setDemoMode] = useState(false)
+  
+  // Set client flag after mount
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Check if we're in demo mode (no API keys)
   useEffect(() => {
@@ -114,13 +124,28 @@ export default function Home() {
           </button>
 
           <button
-            onClick={() => setActiveTab('editor')}
+            onClick={() => setActiveTab('prd')}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-              activeTab === 'editor' ? 'bg-primary-100 text-primary-700' : 'hover:bg-gray-100'
+              activeTab === 'prd' ? 'bg-primary-100 text-primary-700' : 'hover:bg-gray-100'
             }`}
           >
             <FileText size={18} />
             <span>PRD Editor</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('code')}
+            disabled={!prototypeCode || !isClient}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+              activeTab === 'code' 
+                ? 'bg-primary-100 text-primary-700' 
+                : prototypeCode && isClient
+                  ? 'hover:bg-gray-100' 
+                  : 'opacity-50 cursor-not-allowed'
+            }`}
+          >
+            <Code size={18} />
+            <span>Prototype Code</span>
           </button>
 
           <button
@@ -175,20 +200,20 @@ export default function Home() {
               />
             </div>
             <div className="flex items-center gap-4">
+              <ModelSelector 
+                apiKeys={apiKeys}
+                onModelChange={handleModelChange}
+              />
               {demoMode && (
                 <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-                  Demo Mode - No API Key Required
+                  Demo Mode
                 </span>
               )}
-              {!demoMode && (
-                <ModelSelector 
-                  apiKeys={apiKeys}
-                  onModelChange={handleModelChange}
-                />
+              {isClient && (
+                <span className="text-sm text-gray-500">
+                  {messages.length} messages • {Math.ceil(prdContent.length / 1000)}k chars
+                </span>
               )}
-              <span className="text-sm text-gray-500">
-                {messages.length} messages • {Math.ceil(prdContent.length / 1000)}k chars
-              </span>
             </div>
           </div>
         </div>
@@ -203,17 +228,55 @@ export default function Home() {
             />
           )}
 
-          {activeTab === 'editor' && (
+          {activeTab === 'prd' && (
             <MarkdownEditor
               content={prdContent}
               onChange={setPrdContent}
               projectName={currentProject}
+              anthropicApiKey={apiKeys.anthropic}
+              prototypeCode={prototypeCode}
+              setPrototypeCode={setPrototypeCode}
+              onGeneratePrototype={() => {
+                // After generating, switch to code tab
+                setActiveTab('code')
+              }}
+              showPrototypePreview={false}
             />
           )}
 
+          {activeTab === 'code' && (
+            prototypeCode ? (
+              <MarkdownEditor
+                content={prdContent}
+                onChange={setPrdContent}
+                projectName={currentProject}
+                anthropicApiKey={apiKeys.anthropic}
+                prototypeCode={prototypeCode}
+                setPrototypeCode={setPrototypeCode}
+                onGeneratePrototype={() => {}}
+                showPrototypePreview={true}
+                codeOnly={true}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center bg-gray-50">
+                <div className="text-center">
+                  <Code size={48} className="mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">No Prototype Generated Yet</h3>
+                  <p className="text-gray-600 mb-4">Generate a prototype from your PRD first</p>
+                  <button
+                    onClick={() => setActiveTab('prd')}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                  >
+                    Go to PRD Editor
+                  </button>
+                </div>
+              </div>
+            )
+          )}
+
           {activeTab === 'settings' && (
-            <div className="h-full bg-white p-6">
-              <div className="max-w-2xl mx-auto">
+            <div className="h-full bg-white overflow-y-auto">
+              <div className="max-w-2xl mx-auto p-6">
                 <h2 className="text-2xl font-bold mb-6">Settings</h2>
                 <ApiKeyManager
                   apiKeys={apiKeys}
