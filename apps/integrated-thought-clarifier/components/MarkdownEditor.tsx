@@ -31,6 +31,8 @@ interface MarkdownEditorProps {
   onGeneratePrototype?: () => void
   showPrototypePreview?: boolean
   codeOnly?: boolean
+  highlightPosition?: { line: number, column: number, startOffset?: number, endOffset?: number }
+  onEditorMount?: (editor: any) => void
 }
 
 export default function MarkdownEditor({ 
@@ -43,13 +45,17 @@ export default function MarkdownEditor({
   setPrototypeCode: externalSetPrototypeCode,
   onGeneratePrototype,
   showPrototypePreview = false,
-  codeOnly = false
+  codeOnly = false,
+  highlightPosition,
+  onEditorMount
 }: MarkdownEditorProps) {
   const [showPreview, setShowPreview] = useState(true)
   const [isClient, setIsClient] = useState(false)
   const [editorWidth, setEditorWidth] = useState(50) // Always start with 50 for SSR
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<any>(null)
+  const monacoRef = useRef<any>(null)
   
   // Use external prototype code if provided, otherwise manage locally
   const [localPrototypeCode, setLocalPrototypeCode] = useState('')
@@ -97,6 +103,52 @@ export default function MarkdownEditor({
       setEditorWidth(parseFloat(saved))
     }
   }, [])
+
+  // Handle highlighting when position changes
+  useEffect(() => {
+    if (highlightPosition && editorRef.current && monacoRef.current) {
+      const { line, column, startOffset, endOffset } = highlightPosition
+      const editor = editorRef.current
+      const monaco = monacoRef.current
+      
+      // Scroll to line
+      editor.revealLineInCenter(line)
+      
+      // Create decoration for highlighting
+      if (startOffset !== undefined && endOffset !== undefined) {
+        const model = editor.getModel()
+        if (model) {
+          const startPos = model.getPositionAt(startOffset)
+          const endPos = model.getPositionAt(endOffset)
+          
+          // Clear previous decorations
+          const decorations = editor.deltaDecorations([], [
+            {
+              range: new monaco.Range(
+                startPos.lineNumber,
+                startPos.column,
+                endPos.lineNumber,
+                endPos.column
+              ),
+              options: {
+                className: 'lint-highlight',
+                inlineClassName: 'lint-highlight-inline'
+              }
+            }
+          ])
+          
+          // Remove decoration after 3 seconds
+          setTimeout(() => {
+            editor.deltaDecorations(decorations, [])
+          }, 3000)
+        }
+      }
+      
+      // Set cursor position
+      editor.setPosition({ lineNumber: line, column: column })
+      editor.focus()
+    }
+  }, [highlightPosition])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content)
@@ -608,6 +660,19 @@ export default function MarkdownEditor({
             value={content}
             onChange={(value) => onChange(value || '')}
             theme="vs"
+            onMount={(editor, monaco) => {
+              editorRef.current = editor
+              monacoRef.current = monaco
+              onEditorMount?.(editor)
+              
+              // Define custom CSS for highlighting
+              monaco.editor.defineTheme('custom', {
+                base: 'vs',
+                inherit: true,
+                rules: [],
+                colors: {}
+              })
+            }}
             options={{
               minimap: { enabled: false },
               fontSize: 14,

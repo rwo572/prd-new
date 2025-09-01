@@ -179,3 +179,46 @@ body {
 .markdown-preview em {
   font-style: italic;
 }
+
+/* Monaco Editor Highlighting for Lint Issues */
+.lint-highlight {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 3px;
+}
+
+.lint-highlight-inline {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  text-decoration: underline wavy rgba(59, 130, 246, 0.5);
+  animation: pulse-highlight 2s ease-in-out infinite;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% {
+    background-color: rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.35);
+  }
+}
+
+/* Linter Hover Suggestions */
+.linter-suggestion-popup {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Smooth scrolling for editor */
+.monaco-editor .monaco-scrollable-element {
+  scroll-behavior: smooth;
+}
