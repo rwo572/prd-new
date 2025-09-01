@@ -415,15 +415,39 @@ export default function BoltPrototype({ code, projectName }: BoltPrototypeProps)
   const [fileContent, setFileContent] = useState(code)
   const [terminalOutput, setTerminalOutput] = useState<string[]>(['Initializing WebContainer...'])
   const [isRunning, setIsRunning] = useState(false)
-  const [showTerminal, setShowTerminal] = useState(true)
-  const [showFileExplorer, setShowFileExplorer] = useState(true)
+  const [showTerminal, setShowTerminal] = useState(() => {
+    // Load saved terminal visibility from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('prototype-show-terminal')
+      return saved !== null ? saved === 'true' : true
+    }
+    return true
+  })
+  const [showFileExplorer, setShowFileExplorer] = useState(() => {
+    // Load saved file explorer visibility from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('prototype-show-explorer')
+      return saved !== null ? saved === 'true' : true
+    }
+    return true
+  })
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [editorWidth, setEditorWidth] = useState(() => {
+    // Load saved width from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('prototype-editor-width')
+      return saved ? parseFloat(saved) : 50
+    }
+    return 50
+  })
+  const [isDragging, setIsDragging] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const terminalRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const [fileTree] = useState<FileNode[]>([
     {
@@ -768,6 +792,68 @@ export default App`
     URL.revokeObjectURL(url)
   }
 
+  // Toggle handlers with localStorage persistence
+  const toggleTerminal = (show?: boolean) => {
+    const newState = show !== undefined ? show : !showTerminal
+    setShowTerminal(newState)
+    localStorage.setItem('prototype-show-terminal', newState.toString())
+  }
+
+  const toggleFileExplorer = (show?: boolean) => {
+    const newState = show !== undefined ? show : !showFileExplorer
+    setShowFileExplorer(newState)
+    localStorage.setItem('prototype-show-explorer', newState.toString())
+  }
+
+  // Handle drag to resize panels
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !containerRef.current) return
+      
+      const container = containerRef.current.getBoundingClientRect()
+      let relativeX = e.clientX - container.left
+      
+      // Adjust for file explorer width if visible
+      if (showFileExplorer) {
+        relativeX -= 192 // 48 * 4 = 192px (w-48 in Tailwind)
+      }
+      
+      const availableWidth = container.width - (showFileExplorer ? 192 : 0)
+      const newWidth = (relativeX / availableWidth) * 100
+      
+      // Limit the width between 20% and 80%
+      if (newWidth >= 20 && newWidth <= 80) {
+        setEditorWidth(newWidth)
+        // Save to localStorage
+        localStorage.setItem('prototype-editor-width', newWidth.toString())
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      // Add cursor style to body during drag
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isDragging, showFileExplorer])
+
   const toggleDirectory = (dir: FileNode) => {
     // Since fileTree is static, we'd need to make it stateful to toggle
     // For now, directories are always expanded
@@ -851,7 +937,7 @@ export default App`
             <span>Download</span>
           </button>
           <button
-            onClick={() => setShowTerminal(!showTerminal)}
+            onClick={() => toggleTerminal()}
             className={`p-1.5 rounded transition-colors ${
               showTerminal ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-600'
             }`}
@@ -885,14 +971,14 @@ export default App`
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden" ref={containerRef}>
           {/* File Explorer */}
           {showFileExplorer && (
-            <div className="w-48 border-r border-gray-200 bg-gray-50 overflow-y-auto">
+            <div className="w-48 border-r border-gray-200 bg-gray-50 overflow-y-auto flex-shrink-0">
               <div className="p-2 border-b border-gray-200 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-600 uppercase">Explorer</span>
                 <button
-                  onClick={() => setShowFileExplorer(false)}
+                  onClick={() => toggleFileExplorer(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <ChevronRight size={12} />
@@ -905,11 +991,11 @@ export default App`
           )}
 
           {/* Code Editor */}
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 relative" style={{ width: `${editorWidth}%` }}>
             <div className="bg-gray-100 px-3 py-1 border-b border-gray-200 flex items-center gap-2">
               {!showFileExplorer && (
                 <button
-                  onClick={() => setShowFileExplorer(true)}
+                  onClick={() => toggleFileExplorer(true)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <ChevronRight size={12} />
@@ -938,8 +1024,19 @@ export default App`
             </div>
           </div>
 
+          {/* Draggable Divider */}
+          <div
+            className={`w-1 bg-gray-200 hover:bg-purple-400 cursor-col-resize transition-colors relative ${
+              isDragging ? 'bg-purple-500' : ''
+            }`}
+            onMouseDown={handleMouseDown}
+            style={{ touchAction: 'none' }}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
+          </div>
+
           {/* Preview */}
-          <div className="flex-1 border-l border-gray-200">
+          <div className="flex-1 flex flex-col min-w-0" style={{ width: `${100 - editorWidth}%` }}>
             <div className="bg-gray-100 px-3 py-1 border-b border-gray-200">
               <span className="text-xs text-gray-600">Preview</span>
             </div>
@@ -976,7 +1073,7 @@ export default App`
             <div className="px-3 py-1 bg-gray-800 border-b border-gray-700 flex items-center justify-between">
               <span className="text-xs font-medium">Terminal</span>
               <button
-                onClick={() => setShowTerminal(false)}
+                onClick={() => toggleTerminal(false)}
                 className="text-gray-400 hover:text-gray-300"
               >
                 <ChevronDown size={12} />

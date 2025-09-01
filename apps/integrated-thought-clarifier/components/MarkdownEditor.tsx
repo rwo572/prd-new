@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -47,6 +47,16 @@ export default function MarkdownEditor({
 }: MarkdownEditorProps) {
   const [showPreview, setShowPreview] = useState(true)
   const [isClient, setIsClient] = useState(false)
+  const [editorWidth, setEditorWidth] = useState(() => {
+    // Load saved width from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('prd-editor-width')
+      return saved ? parseFloat(saved) : 50
+    }
+    return 50
+  })
+  const [isDragging, setIsDragging] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   
   // Use external prototype code if provided, otherwise manage locally
   const [localPrototypeCode, setLocalPrototypeCode] = useState('')
@@ -334,6 +344,48 @@ export default function MarkdownEditor({
     }
   }
 
+  // Handle drag to resize panels
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !containerRef.current) return
+      
+      const container = containerRef.current.getBoundingClientRect()
+      const relativeX = e.clientX - container.left
+      const newWidth = (relativeX / container.width) * 100
+      
+      // Limit the width between 20% and 80%
+      if (newWidth >= 20 && newWidth <= 80) {
+        setEditorWidth(newWidth)
+        // Save to localStorage
+        localStorage.setItem('prd-editor-width', newWidth.toString())
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      // Add cursor style to body during drag
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isDragging])
+
   const handleRefinePrototype = async () => {
     if (!refinementInput.trim() || !anthropicApiKey) return
     
@@ -546,9 +598,12 @@ export default function MarkdownEditor({
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" ref={containerRef}>
         {/* Editor Panel */}
-        <div className={`${showPreview ? 'w-1/2' : 'w-full'} h-full transition-all duration-300`}>
+        <div 
+          className="h-full flex flex-col"
+          style={{ width: showPreview ? `${editorWidth}%` : '100%' }}
+        >
           <MonacoEditor
             height="100%"
             defaultLanguage="markdown"
@@ -568,9 +623,25 @@ export default function MarkdownEditor({
           />
         </div>
 
+        {/* Draggable Divider */}
+        {showPreview && (
+          <div
+            className={`w-1 bg-gray-200 hover:bg-purple-400 cursor-col-resize transition-colors relative ${
+              isDragging ? 'bg-purple-500' : ''
+            }`}
+            onMouseDown={handleMouseDown}
+            style={{ touchAction: 'none' }}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
+          </div>
+        )}
+
         {/* Preview Panel */}
         {showPreview && (
-          <div className="w-1/2 h-full border-l border-gray-200 overflow-hidden flex flex-col">
+          <div 
+            className="h-full overflow-hidden flex flex-col"
+            style={{ width: `${100 - editorWidth}%` }}
+          >
             {/* Preview Header */}
             <div className="border-b border-gray-200 px-4 py-2 flex items-center justify-between bg-gray-50">
               <span className="text-sm font-medium text-gray-700">PRD Preview</span>
