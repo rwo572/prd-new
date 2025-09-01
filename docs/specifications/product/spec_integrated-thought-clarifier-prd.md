@@ -88,7 +88,14 @@ An AI-powered tool that guides users through structured thought clarification to
 - **Acceptance Criteria**: BDD-style criteria for validation
 - **Prompt Templates**: Generated prompts for v0, Cursor, Claude, etc.
 
-#### 3.2.4 Privacy-First Architecture
+#### 3.2.4 AI-Powered Prototype Generation
+- **One-Click Generation**: Transform PRD directly into working prototype code
+- **Visual Simplicity**: Progressive disclosure from wireframe to styled to interactive
+- **Smart Defaults**: AI auto-detects product type and applies appropriate patterns
+- **Natural Language Refinement**: Modify prototypes with commands like "make it more colorful"
+- **Multi-Format Export**: React, HTML/CSS, or framework-specific code
+
+#### 3.2.5 Privacy-First Architecture
 - **Zero Data Retention**: No user data stored in application
 - **BYOK (Bring Your Own Key)**: Users provide their own OpenAI/Anthropic API keys
 - **Local Storage Option**: PRDs can be saved locally or pushed to user's GitHub
@@ -213,9 +220,12 @@ IF user_input.ready_for_prototype:
 - Export to prototype-ready prompts
 - Support for OpenAI and Anthropic models
 - Basic templates for common product types
+- **AI-powered prototype generation from PRD**
+- **Live preview with code editor**
+- **Natural language prototype refinement**
 
 ### 5.2 Out of Scope (MVP)
-- Actual prototype generation (handled by external tools)
+- Full-stack application deployment
 - Multi-user collaboration in real-time
 - Visual diagram generation
 - Project management features
@@ -280,18 +290,20 @@ IF user_input.ready_for_prototype:
 - Successfully create GitHub repo
 - Export valid markdown
 
-### 7.2 Phase 2: Prototype Integration (Weeks 7-10)
-**Goal**: Seamless handoff to prototype tools
+### 7.2 Phase 2: Direct Prototype Generation (Weeks 7-10)
+**Goal**: Generate working prototypes directly from PRDs
 
 **Features**:
-- Prompt templates for v0, Cursor, Claude
-- Component specification format
-- Acceptance criteria generation
-- Anthropic Claude support
+- One-click prototype generation using Claude Sonnet
+- Three-stage visual generation (wireframe → styled → interactive)
+- Live preview with Monaco editor integration
+- Natural language refinement commands
+- Export to React/TypeScript or HTML/CSS
 
 **Success Criteria**:
-- 80% of exported prompts generate working prototypes
-- Support 3+ prototype tools
+- Generate working prototype in <10 seconds
+- 90% of prototypes compile without errors
+- Support responsive design by default
 
 ### 7.3 Phase 3: Iteration Management (Weeks 11-14)
 **Goal**: Track PRD evolution through prototype iterations
@@ -323,15 +335,172 @@ IF user_input.ready_for_prototype:
 
 ---
 
-## 8. Technical Requirements
+## 8. AI-Powered Prototype Generation Feature
 
-### 8.1 Performance Requirements
+### 8.1 Feature Overview
+Transform PRDs directly into functional, interactive prototypes using AI, eliminating the manual translation step between requirements and working code.
+
+### 8.2 Behavioral Contract for Prototype Generation
+
+#### Core Principles
+1. **Visual Simplicity First**: Always start with the simplest representation and progressively enhance
+2. **Smart Defaults**: Make intelligent assumptions rather than asking for configuration
+3. **Instant Gratification**: Show something visual within 2 seconds, even if incomplete
+4. **Production-Ready Code**: Generate code that could be used as a starting point for real development
+
+#### Personality & Tone
+- **Encouraging**: "Great! Your prototype is coming to life..."
+- **Educational**: "I'm adding navigation based on your user flow requirements..."
+- **Non-technical**: Hide complexity, show results
+
+### 8.3 Behavioral Examples
+
+#### Example 1: Simple B2B SaaS Dashboard
+**User PRD Contains**: "Analytics dashboard for tracking team productivity"
+
+**Good Response** ✅:
+```typescript
+// Generated in 3 stages:
+// 1. Wireframe (1s): Basic layout boxes
+// 2. Styled (3s): Charts, cards, navigation
+// 3. Interactive (5s): Clickable filters, hover states
+
+import React from 'react';
+// Full working dashboard with mock data...
+```
+*Why Good*: Progressive enhancement, realistic data, interactive elements
+
+**Bad Response** ❌:
+```html
+<div>Dashboard goes here</div>
+<!-- TODO: Add charts -->
+```
+*Why Bad*: Not functional, requires manual work, no value delivered
+
+#### Example 2: Natural Language Refinement
+**User Says**: "Make it more colorful and add dark mode"
+
+**Good Response** ✅:
+- Instantly adjusts color palette to be more vibrant
+- Adds theme toggle in top-right corner
+- Preserves all functionality while updating styles
+- Shows transition animation between themes
+
+**Bad Response** ❌:
+- Asks "What colors do you prefer?"
+- Requires page reload
+- Breaks existing functionality
+
+#### Example 3: Edge Case - Vague Requirements
+**PRD Contains**: "Social features for user engagement"
+
+**Good Response** ✅:
+- Generates common social patterns: profiles, posts, comments
+- Includes note: "I've added typical social features. You can refine with: 'Focus on messaging' or 'Add video sharing'"
+
+**Reject Response** 🚫:
+- When PRD contains no actionable requirements
+- Response: "I need at least a basic description of your product's purpose to generate a prototype. Try describing: What does your product do? Who uses it?"
+
+### 8.4 Safety & Boundaries
+
+#### Hard Boundaries (Never Generate)
+| Category | Example | Detection | Response |
+|----------|---------|-----------|----------|
+| Malicious Code | Keyloggers, data theft | Pattern matching | "I cannot generate code with security risks" |
+| PII Collection | SSN, credit cards without encryption | Regex patterns | "Sensitive data requires proper security implementation" |
+| Deceptive UI | Fake payment forms, phishing | Keyword detection | "I cannot create deceptive interfaces" |
+| Harmful Content | Gambling, adult content | Content classification | "This type of application requires special compliance" |
+
+#### Soft Boundaries (Contextual)
+| Category | Low Risk | Medium Risk | High Risk |
+|----------|----------|-------------|-----------|
+| Financial | Calculator UI | Payment form mockup | Live payment processing |
+| Healthcare | Wellness tracker | Appointment scheduler | Medical diagnosis tool |
+| Data Storage | Local state only | IndexedDB usage | Server database calls |
+
+### 8.5 Implementation Specification
+
+#### AI Model Configuration
+| Aspect | Specification | Rationale |
+|--------|--------------|-----------|
+| Model | Claude 3.5 Sonnet | Best balance of speed and code quality |
+| Temperature | 0.3 | Consistent, working code over creativity |
+| Max Tokens | 8192 | Sufficient for complete components |
+| Response Time | <10s total | User attention span limit |
+| Fallback | GPT-4 Turbo | If Anthropic API fails |
+
+#### Generation Pipeline
+```
+PRD Input → Context Extraction → Template Selection → Code Generation
+    ↓             ↓                    ↓                   ↓
+[Product Type] [Key Features] [UI Framework] [Progressive Output]
+```
+
+### 8.6 Success Metrics
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Generation Success Rate | >95% | Prototypes that render without errors |
+| Time to First Visual | <2s | When user sees wireframe |
+| Time to Interactive | <10s | Fully interactive prototype |
+| Refinement Success | >90% | Natural language commands that work |
+| Code Quality Score | >80% | ESLint/Prettier compliance |
+| User Satisfaction | >4.5/5 | Post-generation survey |
+
+### 8.7 Edge Cases & Error Handling
+
+#### Priority Edge Cases
+
+1. **Insufficient PRD Detail**
+   - Detection: PRD <500 characters
+   - Response: Generate basic template with placeholders
+   - Message: "I've created a basic structure. Add more details to your PRD for a richer prototype"
+
+2. **Conflicting Requirements**
+   - Detection: Mutually exclusive features
+   - Response: Generate primary option with toggle for alternative
+   - Message: "I noticed conflicting requirements. I've implemented [X] with an option to switch to [Y]"
+
+3. **API Rate Limiting**
+   - Detection: 429 response from Claude API
+   - Response: Queue and retry with status updates
+   - Message: "High demand detected. Your prototype will be ready in approximately X seconds..."
+
+4. **Complex Visualizations**
+   - Detection: Charts, graphs, maps mentioned
+   - Response: Use appropriate libraries (Recharts, Leaflet)
+   - Message: "Adding data visualizations using industry-standard libraries..."
+
+### 8.8 Quality Assurance
+
+#### Testing Requirements
+| Test Type | Coverage | Method |
+|-----------|----------|--------|
+| Generated Code Compilation | 100% | TypeScript compiler |
+| Accessibility | WCAG 2.1 AA | Automated axe-core |
+| Responsive Design | 3 breakpoints | Viewport testing |
+| Browser Compatibility | Chrome, Safari, Firefox | Automated testing |
+
+#### Validation Checklist
+- [ ] All generated code follows React/TypeScript best practices
+- [ ] No console errors in generated prototypes
+- [ ] Mobile responsive by default
+- [ ] Includes loading and error states
+- [ ] Uses semantic HTML
+- [ ] Includes basic accessibility attributes
+
+---
+
+## 9. Technical Requirements
+
+### 9.1 Performance Requirements
 - Page Load: <2 seconds
 - AI Response Start: <1 second
 - Markdown Rendering: Real-time (<100ms)
 - GitHub Operations: <5 seconds
 
-### 8.2 Security Requirements
+### 9.2 Security Requirements
 - SOC 2 Type II compliance ready
 - Zero user data retention
 - Encrypted API key storage

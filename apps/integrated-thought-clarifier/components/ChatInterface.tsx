@@ -12,8 +12,13 @@ interface ChatInterfaceProps {
 
 export default function ChatInterface({ messages, onSendMessage, isGenerating }: ChatInterfaceProps) {
   const [input, setInput] = useState('')
+  const [isClient, setIsClient] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -46,6 +51,15 @@ export default function ChatInterface({ messages, onSendMessage, isGenerating }:
       textareaRef.current.style.height = 'auto'
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
     }
+  }
+
+  // Prevent rendering until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="animate-spin text-gray-400" size={32} />
+      </div>
+    )
   }
 
   if (messages.length === 0) {
@@ -123,9 +137,6 @@ export default function ChatInterface({ messages, onSendMessage, isGenerating }:
               }`}
             >
               <p className="whitespace-pre-wrap">{message.content}</p>
-              <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-primary-100' : 'text-gray-400'}`}>
-                {new Date(message.timestamp).toLocaleTimeString()}
-              </p>
             </div>
             {message.role === 'user' && (
               <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">

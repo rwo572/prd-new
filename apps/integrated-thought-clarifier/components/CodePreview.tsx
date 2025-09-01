@@ -15,12 +15,18 @@ export default function CodePreview({
 }: CodePreviewProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [iframeKey, setIframeKey] = useState(0)
 
+  // Set mounted state to avoid hydration issues
   useEffect(() => {
-    if (!code) {
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!code || !isMounted) {
       setIsLoading(false)
       return
     }
@@ -72,7 +78,7 @@ export default function CodePreview({
     }
 
     loadSandbox()
-  }, [code, projectName, view])
+  }, [code, projectName, view, isMounted])
 
   if (!code) {
     return (
@@ -108,23 +114,43 @@ export default function CodePreview({
 
   const queryParams = new URLSearchParams({
     embed: '1',
-    view: view,
+    view: 'split', // Use split view to show both code and preview
     theme: 'light',
     hidenavigation: '1',
-    codemirror: '0', // Disable CodeMirror to use Monaco with light theme
-    editorsize: view === 'editor' ? '100' : '60', // Full size for editor view
+    codemirror: '0', 
+    editorsize: '55', // Balanced split
     runonclick: '0',
-    fontsize: '14',
-    hidedevtools: '0',
+    fontsize: '13',
+    hidedevtools: '1',
     modulesview: '0',
     expanddevtools: '0',
     forcerefresh: '1',
     highlights: '0',
-    initialpath: '/src/App.js',
-    module: '/src/App.js'
+    initialpath: '/',
+    module: '/src/App.js',
+    autoresize: '1',
+    eslint: '0', // Disable eslint warnings
+    expandtabs: '0', // Don't expand tabs
+    previewwindow: '0', // Hide preview window tabs
+    tabs: '0', // Hide tabs
+    verticallayout: '0', // Horizontal layout
   })
 
   const actionUrl = `https://codesandbox.io/api/v1/sandboxes/define?${queryParams.toString()}`
+
+  // Don't render iframe until mounted to avoid hydration issues
+  if (!isMounted) {
+    return (
+      <div className="w-full h-full relative bg-white">
+        <div className="absolute inset-0 flex items-center justify-center bg-white">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-3"></div>
+            <p className="text-sm text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full h-full relative bg-white">
@@ -148,21 +174,22 @@ export default function CodePreview({
         <input type="hidden" name="parameters" />
       </form>
 
-      {/* White background wrapper for iframe */}
-      <div className="w-full h-full bg-white">
+      {/* Iframe wrapper */}
+      <div className="w-full h-full bg-gray-50">
         {/* Iframe to display the sandbox */}
         <iframe
           ref={iframeRef}
           key={iframeKey}
           name={`codesandbox-${iframeKey}`}
-          className="w-full h-full border-0 rounded-none bg-white"
+          className="w-full h-full border-0 rounded-none bg-gray-50"
           style={{
             opacity: isLoading ? 0 : 1,
             transition: 'opacity 0.3s ease-in-out',
-            backgroundColor: '#ffffff'
+            backgroundColor: '#f9fafb',
+            border: 'none',
+            outline: 'none'
           }}
-          title="CodeSandbox Preview"
-          allow="accelerometer; camera; encrypted-media; geolocation; gyroscope; hid; microphone; midi; payment; usb"
+          title="Code Editor"
           sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
         />
       </div>

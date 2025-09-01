@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import ChatInterface from '@/components/ChatInterface'
+import AIDiscoveryModal from '@/components/AIDiscoveryModal'
 import MarkdownEditor from '@/components/MarkdownEditor'
 import ApiKeyManager from '@/components/ApiKeyManager'
 import GitHubIntegration from '@/components/GitHubIntegration'
@@ -14,7 +14,8 @@ import { generatePRD } from '@/lib/ai-service'
 import { savePRDLocally, exportPRD } from '@/lib/storage'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'prd' | 'code' | 'settings'>('chat')
+  const [activeTab, setActiveTab] = useState<'prd' | 'code' | 'settings'>('prd')
+  const [showAIDiscovery, setShowAIDiscovery] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [githubConnected, setGithubConnected] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
@@ -34,6 +35,10 @@ export default function Home() {
   // Set client flag after mount
   useEffect(() => {
     setIsClient(true)
+    // Auto-open AI Discovery modal if no messages exist (first time user)
+    if (messages.length === 0) {
+      setShowAIDiscovery(true)
+    }
   }, [])
 
   // Check if we're in demo mode (no API keys)
@@ -105,82 +110,87 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 p-4">
-        <div className="mb-8">
-          <h1 className="text-xl font-bold text-gray-800 mb-2">Integrated Thought Clarifier</h1>
-          <p className="text-sm text-gray-600">Transform Ideas to PRDs</p>
+      {/* Collapsed Sidebar - Icons Only */}
+      <div className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4">
+        <div className="mb-8 relative group">
+          <button
+            onClick={() => setShowAIDiscovery(!showAIDiscovery)}
+            className={`w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center cursor-pointer transform transition-all duration-200 hover:scale-110 hover:rotate-3 shadow-lg ${
+              showAIDiscovery ? 'ring-2 ring-purple-400 ring-offset-2' : ''
+            }`}
+            title="AI Discovery"
+          >
+            <MessageSquare size={24} className="text-white" />
+          </button>
+          <span className="absolute left-full ml-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 font-medium">
+            AI Discovery - Integrated Thought Clarifier
+          </span>
         </div>
 
-        <nav className="space-y-2">
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-              activeTab === 'chat' ? 'bg-primary-100 text-primary-700' : 'hover:bg-gray-100'
-            }`}
-          >
-            <MessageSquare size={18} />
-            <span>AI Discovery</span>
-          </button>
-
+        <nav className="flex-1 flex flex-col gap-1">
           <button
             onClick={() => setActiveTab('prd')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-              activeTab === 'prd' ? 'bg-primary-100 text-primary-700' : 'hover:bg-gray-100'
+            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
+              activeTab === 'prd' ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-600'
             }`}
+            title="PRD Editor"
           >
-            <FileText size={18} />
-            <span>PRD Editor</span>
+            <FileText size={20} />
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+              PRD Editor
+            </span>
           </button>
 
           <button
             onClick={() => setActiveTab('code')}
-            disabled={!prototypeCode || !isClient}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
               activeTab === 'code' 
-                ? 'bg-primary-100 text-primary-700' 
-                : prototypeCode && isClient
-                  ? 'hover:bg-gray-100' 
-                  : 'opacity-50 cursor-not-allowed'
+                ? 'bg-purple-100 text-purple-700' 
+                : 'hover:bg-gray-100 text-gray-600'
             }`}
+            title="Prototype"
           >
-            <Code size={18} />
-            <span>Prototype Code</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-              activeTab === 'settings' ? 'bg-primary-100 text-primary-700' : 'hover:bg-gray-100'
-            }`}
-          >
-            <Settings size={18} />
-            <span>Settings</span>
+            <Code size={20} />
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+              Prototype
+            </span>
           </button>
         </nav>
 
-        <div className="mt-8 pt-8 border-t border-gray-200 space-y-2">
-          <GitHubIntegration 
-            connected={githubConnected}
-            onConnect={() => setGithubConnected(true)}
-            projectName={currentProject}
-            prdContent={prdContent}
-          />
-
+        <div className="flex flex-col gap-1 pt-4 border-t border-gray-200">
           <button
             onClick={handleSavePRD}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100"
+            className="relative group w-12 h-12 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+            title="Save Locally"
           >
-            <Save size={18} />
-            <span>Save Locally</span>
+            <Save size={20} />
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+              Save Locally
+            </span>
           </button>
 
           <button
             onClick={handleExportPRD}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100"
+            className="relative group w-12 h-12 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+            title="Export PRD"
           >
-            <Download size={18} />
-            <span>Export PRD</span>
+            <Download size={20} />
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+              Export PRD
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
+              activeTab === 'settings' ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-600'
+            }`}
+            title="Settings"
+          >
+            <Settings size={20} />
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+              Settings
+            </span>
           </button>
         </div>
       </div>
@@ -220,20 +230,13 @@ export default function Home() {
 
         {/* Content Area */}
         <div className="flex-1 overflow-hidden">
-          {activeTab === 'chat' && (
-            <ChatInterface
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isGenerating={isGenerating}
-            />
-          )}
-
           {activeTab === 'prd' && (
             <MarkdownEditor
               content={prdContent}
               onChange={setPrdContent}
               projectName={currentProject}
               anthropicApiKey={apiKeys.anthropic}
+              selectedModel={apiKeys.selectedModel}
               prototypeCode={prototypeCode}
               setPrototypeCode={setPrototypeCode}
               onGeneratePrototype={() => {
@@ -245,48 +248,59 @@ export default function Home() {
           )}
 
           {activeTab === 'code' && (
-            prototypeCode ? (
-              <MarkdownEditor
-                content={prdContent}
-                onChange={setPrdContent}
-                projectName={currentProject}
-                anthropicApiKey={apiKeys.anthropic}
-                prototypeCode={prototypeCode}
-                setPrototypeCode={setPrototypeCode}
-                onGeneratePrototype={() => {}}
-                showPrototypePreview={true}
-                codeOnly={true}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                  <Code size={48} className="mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">No Prototype Generated Yet</h3>
-                  <p className="text-gray-600 mb-4">Generate a prototype from your PRD first</p>
-                  <button
-                    onClick={() => setActiveTab('prd')}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                  >
-                    Go to PRD Editor
-                  </button>
-                </div>
-              </div>
-            )
+            <MarkdownEditor
+              content={prdContent}
+              onChange={setPrdContent}
+              projectName={currentProject}
+              anthropicApiKey={apiKeys.anthropic}
+              selectedModel={apiKeys.selectedModel}
+              prototypeCode={prototypeCode}
+              setPrototypeCode={setPrototypeCode}
+              onGeneratePrototype={() => {
+                // Prototype generated successfully, already on code tab
+              }}
+              showPrototypePreview={true}
+              codeOnly={true}
+            />
           )}
 
           {activeTab === 'settings' && (
             <div className="h-full bg-white overflow-y-auto">
               <div className="max-w-2xl mx-auto p-6">
                 <h2 className="text-2xl font-bold mb-6">Settings</h2>
-                <ApiKeyManager
-                  apiKeys={apiKeys}
-                  onUpdateKeys={setApiKeys}
-                />
+                
+                {/* API Keys Section */}
+                <div className="mb-8">
+                  <ApiKeyManager
+                    apiKeys={apiKeys}
+                    onUpdateKeys={setApiKeys}
+                  />
+                </div>
+
+                {/* GitHub Integration Section */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold mb-4">GitHub Integration</h3>
+                  <GitHubIntegration 
+                    connected={githubConnected}
+                    onConnect={() => setGithubConnected(true)}
+                    projectName={currentProject}
+                    prdContent={prdContent}
+                  />
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* AI Discovery Modal */}
+      <AIDiscoveryModal
+        isOpen={showAIDiscovery}
+        onClose={() => setShowAIDiscovery(false)}
+        messages={messages}
+        onSendMessage={handleSendMessage}
+        isGenerating={isGenerating}
+      />
     </div>
   )
 }

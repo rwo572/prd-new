@@ -53,7 +53,7 @@ export const AI_MODELS: ModelConfig[] = [
     available: true
   },
   
-  // Anthropic Models - Including Claude 4 Series and Opus 4.1
+  // Anthropic Models - Claude 4 Series and Latest versions
   {
     id: 'claude-opus-4-1-20250805',
     name: 'Claude Opus 4.1 (Latest)',
@@ -65,23 +65,13 @@ export const AI_MODELS: ModelConfig[] = [
     available: true
   },
   {
-    id: 'claude-4-sonnet',
-    name: 'Claude 4 Sonnet',
+    id: 'claude-sonnet-4-20250514',
+    name: 'Claude Sonnet 4',
     provider: 'anthropic',
     contextWindow: 400000,
     outputTokens: 12288,
-    bestFor: ['PRD generation', 'Advanced coding', 'Analysis', 'Balanced performance'],
+    bestFor: ['Advanced coding', 'PRD generation', 'Analysis', 'Balanced performance'],
     costPer1kTokens: { input: 0.005, output: 0.025 },
-    available: true
-  },
-  {
-    id: 'claude-4-haiku',
-    name: 'Claude 4 Haiku',
-    provider: 'anthropic',
-    contextWindow: 400000,
-    outputTokens: 8192,
-    bestFor: ['Fast responses', 'High volume', 'Cost-effective'],
-    costPer1kTokens: { input: 0.0005, output: 0.002 },
     available: true
   },
   {
@@ -90,8 +80,18 @@ export const AI_MODELS: ModelConfig[] = [
     provider: 'anthropic',
     contextWindow: 200000,
     outputTokens: 8192,
-    bestFor: ['Good for coding', 'Analysis'],
+    bestFor: ['Good coding', 'General tasks'],
     costPer1kTokens: { input: 0.003, output: 0.015 },
+    available: true
+  },
+  {
+    id: 'claude-3-5-haiku-20241022',
+    name: 'Claude 3.5 Haiku',
+    provider: 'anthropic',
+    contextWindow: 200000,
+    outputTokens: 8192,
+    bestFor: ['Fast responses', 'High volume', 'Cost-effective'],
+    costPer1kTokens: { input: 0.001, output: 0.005 },
     available: true
   },
   {
@@ -100,8 +100,28 @@ export const AI_MODELS: ModelConfig[] = [
     provider: 'anthropic',
     contextWindow: 200000,
     outputTokens: 4096,
-    bestFor: ['Legacy model', 'Still capable'],
+    bestFor: ['Complex reasoning', 'Research'],
     costPer1kTokens: { input: 0.015, output: 0.075 },
+    available: true
+  },
+  {
+    id: 'claude-3-sonnet-20240229',
+    name: 'Claude 3 Sonnet',
+    provider: 'anthropic',
+    contextWindow: 200000,
+    outputTokens: 4096,
+    bestFor: ['Balanced performance', 'General tasks'],
+    costPer1kTokens: { input: 0.003, output: 0.015 },
+    available: true
+  },
+  {
+    id: 'claude-3-haiku-20240307',
+    name: 'Claude 3 Haiku',
+    provider: 'anthropic',
+    contextWindow: 200000,
+    outputTokens: 4096,
+    bestFor: ['Fast responses', 'Simple tasks'],
+    costPer1kTokens: { input: 0.00025, output: 0.00125 },
     available: true
   }
 ]
@@ -110,12 +130,12 @@ export const AI_MODELS: ModelConfig[] = [
 export const MODEL_RECOMMENDATIONS = {
   'prd-generation': {
     primary: 'claude-opus-4-1-20250805',
-    fallback: 'gpt-5',
+    fallback: 'claude-sonnet-4-20250514',
     reason: 'Claude Opus 4.1 provides unmatched reasoning and comprehensive PRD generation'
   },
   'quick-questions': {
     primary: 'gpt-5-mini',
-    fallback: 'claude-4-haiku',
+    fallback: 'claude-3-5-haiku-20241022',
     reason: 'Fast and cost-effective for simple clarifications'
   },
   'complex-analysis': {
@@ -124,13 +144,13 @@ export const MODEL_RECOMMENDATIONS = {
     reason: 'Ultimate reasoning capabilities for complex problem solving'
   },
   'code-generation': {
-    primary: 'claude-4-sonnet',
+    primary: 'claude-sonnet-4-20250514',
     fallback: 'gpt-5',
-    reason: 'Claude 4 Sonnet has advanced coding capabilities with large context'
+    reason: 'Claude Sonnet 4 has advanced coding capabilities with large context'
   },
   'brainstorming': {
     primary: 'gpt-5',
-    fallback: 'claude-4-sonnet',
+    fallback: 'claude-sonnet-4-20250514',
     reason: 'GPT-5 offers superior creative and diverse ideation'
   }
 }

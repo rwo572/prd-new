@@ -1,40 +1,122 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
-const PROTOTYPE_SYSTEM_PROMPT = `You are an expert full-stack developer specializing in creating working prototypes from PRDs.
+const PROTOTYPE_SYSTEM_PROMPT = `You are an expert full-stack developer specializing in creating modern, production-ready prototypes using shadcn/ui components.
 
-Your task is to generate a SINGLE-FILE React prototype in pure JavaScript (NOT TypeScript) that can be immediately run in a browser.
+Your task is to generate a SINGLE-FILE React prototype in pure JavaScript (NOT TypeScript) that uses shadcn/ui design patterns.
+
+AVAILABLE LIBRARIES:
+- React 18.2.0 with hooks (useState, useEffect, useCallback, useMemo, etc.)
+- Tailwind CSS 3.3.2 (fully configured with shadcn/ui theme)
+- lucide-react for icons (import like: import { Search, User, Settings } from 'lucide-react')
+- clsx and tailwind-merge via cn utility (import from './lib/utils')
+- All Radix UI primitives (@radix-ui/react-*)
+
+COMPONENT PATTERNS TO USE:
+Instead of basic HTML elements, use these shadcn/ui-style component patterns:
+
+// Button component pattern
+const Button = ({ className, variant = "default", size = "default", ...props }) => {
+  const variants = {
+    default: "bg-primary text-primary-foreground hover:bg-primary/90",
+    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+    outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    ghost: "hover:bg-accent hover:text-accent-foreground",
+    link: "text-primary underline-offset-4 hover:underline"
+  }
+  const sizes = {
+    default: "h-10 px-4 py-2",
+    sm: "h-9 rounded-md px-3",
+    lg: "h-11 rounded-md px-8",
+    icon: "h-10 w-10"
+  }
+  return (
+    <button
+      className={cn(
+        "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        variants[variant],
+        sizes[size],
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+// Card component pattern
+const Card = ({ className, ...props }) => (
+  <div className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+)
+const CardHeader = ({ className, ...props }) => (
+  <div className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
+)
+const CardTitle = ({ className, ...props }) => (
+  <h3 className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />
+)
+const CardContent = ({ className, ...props }) => (
+  <div className={cn("p-6 pt-0", className)} {...props} />
+)
+
+// Input component pattern
+const Input = ({ className, ...props }) => (
+  <input
+    className={cn(
+      "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+      className
+    )}
+    {...props}
+  />
+)
+
+// Badge component pattern  
+const Badge = ({ className, variant = "default", ...props }) => {
+  const variants = {
+    default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+    secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+    outline: "text-foreground"
+  }
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        variants[variant],
+        className
+      )}
+      {...props}
+    />
+  )
+}
 
 REQUIREMENTS:
-1. Generate a complete, self-contained React component
-2. Use pure JavaScript - NO TypeScript syntax, NO type annotations, NO interfaces
-3. DO NOT use any TypeScript features like:
-   - Type annotations (: string, : number, etc.)
-   - Interfaces or type definitions
-   - Generic types (<Type>)
-   - as keyword for type assertions
-4. Use Tailwind CSS classes for styling (assume Tailwind is available)
-5. Make it functional and interactive
-6. Include realistic mock data where needed
-7. Focus on the core functionality described in the PRD
-8. Keep it simple but impressive - show the main value proposition
-9. Include loading states and error handling
-10. Make it responsive by default
+1. Define cn utility inline at the top of your file (DO NOT import it):
+   const cn = (...classes) => classes.filter(Boolean).join(' ')
+2. Import icons from lucide-react as needed
+3. Use the component patterns above (define them inline in your code)
+4. Use Tailwind CSS with shadcn/ui design tokens (bg-background, text-foreground, etc.)
+5. Make it functional, interactive, and beautiful
+6. Include realistic mock data
+7. Add smooth animations and transitions
+8. Include proper loading and error states
+9. Make it fully responsive
+10. Use modern React patterns (hooks, functional components)
+11. Import React hooks from 'react' not 'React' (e.g., import { useState } from 'react')
 
-OUTPUT FORMAT:
-- Start with React hooks if needed (useState, useEffect, etc.)
-- Create the main component as a function
-- Include any helper functions
-- Export the component as default
-- Use modern React patterns (hooks, functional components)
-- Use template literals with backticks for string interpolation
+IMPORTANT: 
+- Return ONLY pure JavaScript code
+- NO TypeScript syntax
+- NO markdown code blocks
+- Include all component definitions inline
+- Make it production-ready and polished`
 
-IMPORTANT: Return ONLY pure JavaScript code, no TypeScript, no explanations or markdown code blocks.`
+// Set a longer timeout for this endpoint (120 seconds)
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { prd, projectName } = body
+    const { prd, projectName, modelId } = body
 
     // Get API key from header
     const apiKey = request.headers.get('x-anthropic-api-key')
@@ -60,9 +142,12 @@ Remember:
 - Make it look professional and polished
 - Focus on the main value proposition described in the PRD`
 
-    // Using Claude Sonnet 3.7 - the latest available Sonnet model
+    // Use the selected model, defaulting to Claude 3.5 Sonnet if not specified
+    const selectedModel = modelId || 'claude-3-5-sonnet-20240620'
+    
+    // Using the selected Claude model
     const completion = await anthropic.messages.create({
-      model: 'claude-3-7-sonnet-20250219',
+      model: selectedModel,
       messages: [{ role: 'user', content: prompt }],
       system: PROTOTYPE_SYSTEM_PROMPT,
       max_tokens: 8192,

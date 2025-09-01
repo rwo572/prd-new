@@ -5,7 +5,15 @@ import dynamic from 'next/dynamic'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Eye, EyeOff, Copy, Download, Code, X, Loader2, Sparkles, Smartphone, Palette, Rocket, ExternalLink } from 'lucide-react'
-import CodePreview from './CodePreview'
+
+const BoltPrototype = dynamic(() => import('./BoltPrototype'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <Loader2 className="animate-spin text-purple-600" size={32} />
+    </div>
+  )
+})
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -17,6 +25,7 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void
   projectName: string
   anthropicApiKey?: string
+  selectedModel?: string
   prototypeCode?: string
   setPrototypeCode?: (code: string) => void
   onGeneratePrototype?: () => void
@@ -29,6 +38,7 @@ export default function MarkdownEditor({
   onChange, 
   projectName, 
   anthropicApiKey,
+  selectedModel,
   prototypeCode: externalPrototypeCode,
   setPrototypeCode: externalSetPrototypeCode,
   onGeneratePrototype,
@@ -36,6 +46,7 @@ export default function MarkdownEditor({
   codeOnly = false
 }: MarkdownEditorProps) {
   const [showPreview, setShowPreview] = useState(true)
+  const [isClient, setIsClient] = useState(false)
   
   // Use external prototype code if provided, otherwise manage locally
   const [localPrototypeCode, setLocalPrototypeCode] = useState('')
@@ -73,6 +84,11 @@ export default function MarkdownEditor({
     'Adding responsive design...',
     'Finalizing the prototype...'
   ]
+
+  // Set client flag after mount to avoid hydration issues
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content)
@@ -129,6 +145,10 @@ export default function MarkdownEditor({
   }, [messageIndex, isGenerating, prototypeCode, generationMessages])
 
   const handleGeneratePrototype = async () => {
+    console.log('handleGeneratePrototype called')
+    console.log('API Key present:', !!anthropicApiKey)
+    console.log('Content length:', content?.length)
+    
     if (!anthropicApiKey) {
       alert('Please configure your Anthropic API key in Settings to generate prototypes.')
       return
@@ -147,20 +167,68 @@ export default function MarkdownEditor({
     setGenerationStage('wireframe')
     setLastGenerationTime(now)
     setMessageIndex(0)
-    setGenerationMessage(generationMessages[0])
+    setGenerationMessage('Starting prototype generation... This may take 2-3 minutes.')
     
     try {
+      console.log('=== STARTING PROTOTYPE GENERATION ===')
+      console.log('Time:', new Date().toISOString())
+      console.log('Selected model:', selectedModel)
+      console.log('Content length:', content.length)
+      console.log('API key present:', !!anthropicApiKey)
+      
+      // Keep the tab active to prevent network suspension
+      let keepAliveInterval: NodeJS.Timeout | null = null
+      let progressInterval: NodeJS.Timeout | null = null
+      let elapsedSeconds = 0
+      
+      // Start keep-alive mechanism
+      keepAliveInterval = setInterval(() => {
+        // Prevent browser from suspending
+        console.log('Keep-alive ping...', new Date().toISOString())
+      }, 5000)
+      
+      // Update progress message
+      progressInterval = setInterval(() => {
+        elapsedSeconds += 1
+        if (isGenerating) {
+          const minutes = Math.floor(elapsedSeconds / 60)
+          const seconds = elapsedSeconds % 60
+          setGenerationMessage(`Generating prototype... ${minutes}:${seconds.toString().padStart(2, '0')} elapsed. This usually takes 2-3 minutes.`)
+        }
+      }, 1000)
+      
+      // Add a timeout for the fetch request (5 minutes)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        controller.abort()
+        console.log('Request timed out after 5 minutes')
+      }, 300000) // 5 minutes
+      
+      console.log('Sending request to API...')
       const response = await fetch('/api/generate-prototype', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-anthropic-api-key': anthropicApiKey
+          'x-anthropic-api-key': anthropicApiKey,
+          // Keep connection alive
+          'Connection': 'keep-alive'
         },
         body: JSON.stringify({
           prd: content,
-          projectName
-        })
+          projectName,
+          modelId: selectedModel
+        }),
+        signal: controller.signal,
+        // Keep the connection alive
+        keepalive: true
       })
+      
+      // Clear intervals
+      clearTimeout(timeoutId)
+      if (keepAliveInterval) clearInterval(keepAliveInterval)
+      if (progressInterval) clearInterval(progressInterval)
+      
+      console.log('Response received, status:', response.status)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
@@ -175,27 +243,94 @@ export default function MarkdownEditor({
         }
       }
 
-      const data = await response.json()
-      console.log('Prototype generated successfully:', data.prototype?.substring(0, 100))
+      console.log('Parsing JSON response...')
+      let data
+      try {
+        data = await response.json()
+        console.log('JSON parsed successfully')
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError)
+        throw new Error('Failed to parse server response')
+      }
       
-      if (!data.prototype) {
+      console.log('Response data:', data)
+      
+      if (!data || !data.prototype) {
+        console.error('Invalid response structure:', data)
         throw new Error('No prototype code received from API')
       }
       
-      setPrototypeCode(data.prototype)
-      setPrototypeHistory(prev => [...prev, data.prototype])
-      setGenerationStage('interactive')
-      // Call the callback if provided
-      if (onGeneratePrototype) {
-        onGeneratePrototype()
+      console.log('Prototype received, length:', data.prototype.length)
+      
+      // Update state in a batch
+      try {
+        console.log('Attempting to update prototype code...')
+        
+        // Try to set the prototype code
+        try {
+          setPrototypeCode(data.prototype)
+          console.log('Prototype code state updated')
+        } catch (e) {
+          console.error('Failed to set prototype code:', e)
+          // If localStorage fails, at least show it in the UI
+          alert('Generated prototype is too large for localStorage. It will be displayed but not persisted.')
+          // Still try to display it
+          setPrototypeCode(data.prototype)
+        }
+        
+        // Update history (might fail if too large)
+        try {
+          setPrototypeHistory(prev => [...prev, data.prototype])
+          console.log('History updated')
+        } catch (e) {
+          console.warn('Failed to update history:', e)
+        }
+        
+        // Reset loading states
+        setIsGenerating(false)
+        setGenerationStage(null)
+        
+        console.log('All states updated successfully')
+        
+        // Call the callback if provided
+        if (onGeneratePrototype) {
+          console.log('Calling callback...')
+          onGeneratePrototype()
+        }
+        
+        // Show success message
+        console.log('✅ PROTOTYPE GENERATION COMPLETE!')
+        console.log('Prototype length:', data.prototype.length, 'characters')
+        
+      } catch (stateError) {
+        console.error('Error updating state:', stateError)
+        throw stateError
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating prototype:', error)
-      alert(`Error generating prototype: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      setPrototypeCode('// Error generating prototype. Please check console for details.')
-    } finally {
+      console.error('Full error details:', error.stack)
+      
+      // Clean up intervals if they exist
+      if (typeof keepAliveInterval !== 'undefined' && keepAliveInterval) {
+        clearInterval(keepAliveInterval)
+      }
+      if (typeof progressInterval !== 'undefined' && progressInterval) {
+        clearInterval(progressInterval)
+      }
+      
+      // Check error type
+      if (error.name === 'AbortError') {
+        alert('Prototype generation timed out. Please try again with a simpler PRD or try a different model.')
+      } else if (error.message === 'Failed to fetch' || error.name === 'NetworkError') {
+        alert('Network error occurred. This can happen with long requests. Please try again and keep the browser tab active.')
+      } else {
+        alert(`Error generating prototype: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
+      
+      // Reset states on error
       setIsGenerating(false)
       setGenerationStage(null)
+      // Don't set error code, keep the area empty
     }
   }
 
@@ -233,52 +368,66 @@ export default function MarkdownEditor({
     }
   }
 
-  // For code-only mode, show only the CodeSandbox embed with expanded editor
+  // For code-only mode, show only the prototype editor
   if (codeOnly) {
     return (
       <div className="h-full flex flex-col bg-white">
-        {/* Header Bar */}
+        {/* Always show the header with buttons */}
         <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Code size={18} className="text-purple-600" />
-              <h3 className="font-semibold text-gray-900">Interactive Prototype</h3>
-            </div>
-            {prototypeCode && (
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                Live Preview
-              </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleGeneratePrototype}
+              disabled={!content || content.length < 100 || !anthropicApiKey || isGenerating}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm"
+              title={!anthropicApiKey ? 'Configure Anthropic API key in Settings' : prototypeCode ? 'Generate a new prototype from the PRD' : 'Generate a working prototype from the PRD'}
+            >
+              {isGenerating ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Sparkles size={16} className="animate-pulse" />
+              )}
+              <span className="text-sm">{isGenerating ? 'Generating...' : prototypeCode ? 'Regenerate Prototype' : 'Generate Prototype'}</span>
+            </button>
+            {prototypeCode && !isGenerating && (
+              <button
+                onClick={() => {
+                  if (confirm('Are you sure you want to clear the current prototype?')) {
+                    setPrototypeCode('')
+                    setPrototypeHistory([])
+                  }
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                title="Clear the current prototype"
+              >
+                <X size={14} />
+                <span>Clear</span>
+              </button>
             )}
           </div>
           {prototypeCode && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCopyPrototype}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                title="Copy prototype code"
-              >
-                <Copy size={14} />
-                <span>{copiedPrototype ? 'Copied!' : 'Copy'}</span>
-              </button>
-              <button
-                onClick={handleDownloadPrototype}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                title="Download as JavaScript file"
-              >
-                <Download size={14} />
-                <span>Download</span>
-              </button>
+            <div className="text-xs text-gray-500">
+              Prototype generated • {prototypeHistory.length} version{prototypeHistory.length !== 1 ? 's' : ''}
             </div>
           )}
         </div>
         
-        {/* CodeSandbox Embed */}
+        {/* Prototype Editor */}
         <div className="flex-1">
-          {prototypeCode ? (
-            <CodePreview
+          {isGenerating && !prototypeCode ? (
+            <div className="flex items-center justify-center h-full bg-gray-50">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-white border-2 border-purple-200 rounded-full flex items-center justify-center mx-auto mb-4 relative">
+                  <Sparkles size={32} className="text-purple-600 animate-pulse" />
+                  <div className="absolute inset-0 rounded-full border-4 border-purple-600 border-t-transparent animate-spin"></div>
+                </div>
+                <p className="text-lg font-medium text-gray-900 mb-2">Generating Your Prototype</p>
+                <p className="text-sm text-purple-600 animate-pulse">{generationMessage}</p>
+              </div>
+            </div>
+          ) : prototypeCode ? (
+            <BoltPrototype
               code={prototypeCode}
               projectName={projectName}
-              view="editor"
             />
           ) : (
             <div className="flex items-center justify-center h-full bg-gray-50">
@@ -286,8 +435,28 @@ export default function MarkdownEditor({
                 <div className="w-20 h-20 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Code size={32} className="text-gray-400" />
                 </div>
-                <p className="text-gray-600 font-medium">No prototype generated yet</p>
-                <p className="text-sm text-gray-500 mt-2">Generate a prototype from the PRD tab to see it here</p>
+                <p className="text-gray-600 font-medium mb-4">No prototype generated yet</p>
+                {(!content || content.length < 100) ? (
+                  <p className="text-sm text-gray-500">Create a PRD first to generate a prototype</p>
+                ) : !anthropicApiKey ? (
+                  <p className="text-sm text-gray-500">Configure your Anthropic API key in Settings to generate prototypes</p>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500 mb-4">Your PRD is ready for prototype generation</p>
+                    <button
+                      onClick={handleGeneratePrototype}
+                      disabled={isGenerating}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-md mx-auto"
+                    >
+                      {isGenerating ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={18} className="animate-pulse" />
+                      )}
+                      <span>{isGenerating ? 'Generating...' : 'Generate Prototype'}</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -346,20 +515,13 @@ export default function MarkdownEditor({
       <div className="border-b border-gray-200 px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h3 className="font-semibold">PRD Editor</h3>
-          <span className="text-sm text-gray-500">
-            {content.split('\n').length} lines • {content.split(' ').length} words
-          </span>
+          {isClient && content && (
+            <span className="text-sm text-gray-500">
+              {content.split('\n').length} lines • {content.split(' ').length} words
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleGeneratePrototype}
-            disabled={!content || content.length < 100 || !anthropicApiKey}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm"
-            title={!anthropicApiKey ? 'Configure Anthropic API key in Settings' : 'Generate a working prototype from this PRD'}
-          >
-            <Sparkles size={16} className="animate-pulse" />
-            <span className="text-sm">Generate Prototype</span>
-          </button>
           <button
             onClick={() => setShowPreview(!showPreview)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
@@ -417,12 +579,16 @@ export default function MarkdownEditor({
             {/* Preview Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="p-6">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  className="markdown-preview"
-                >
-                  {content || '*Start typing to see preview...*'}
-                </ReactMarkdown>
+                {isClient ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    className="markdown-preview"
+                  >
+                    {content || '*Start typing to see preview...*'}
+                  </ReactMarkdown>
+                ) : (
+                  <div className="text-gray-500 italic">Loading preview...</div>
+                )}
               </div>
             </div>
           </div>
