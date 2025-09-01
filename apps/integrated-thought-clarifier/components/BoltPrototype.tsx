@@ -20,7 +20,8 @@ import {
   Minimize2,
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Layers
 } from 'lucide-react'
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -35,6 +36,10 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
 interface BoltPrototypeProps {
   code: string
   projectName: string
+  onRegenerate?: () => void
+  isRegenerating?: boolean
+  showAnnotations?: boolean
+  onToggleAnnotations?: () => void
 }
 
 interface FileNode {
@@ -357,6 +362,19 @@ export function cn(...inputs) {
 let globalWebContainerInstance: WebContainer | null = null
 let bootPromise: Promise<WebContainer> | null = null
 let isInitialized = false
+let lastCodeHash = ''
+
+// Simple hash function to detect code changes
+const hashCode = (str: string): string => {
+  if (!str) return ''
+  let hash = 0
+  for (let i = 0; i < Math.min(str.length, 1000); i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return hash.toString(36)
+}
 let initCount = 0
 
 // Force reset to ensure Tailwind dependencies are installed
@@ -406,12 +424,19 @@ async function getWebContainerInstance(): Promise<WebContainer> {
   return bootPromise
 }
 
-// Force complete reset for debugging
-globalWebContainerInstance = null
-bootPromise = null
-isInitialized = false
+// Only reset if explicitly needed (commented out for persistence)
+// globalWebContainerInstance = null
+// bootPromise = null
+// isInitialized = false
 
-export default function BoltPrototype({ code, projectName }: BoltPrototypeProps) {
+export default function BoltPrototype({ 
+  code, 
+  projectName,
+  onRegenerate,
+  isRegenerating = false,
+  showAnnotations = false,
+  onToggleAnnotations
+}: BoltPrototypeProps) {
   const [webcontainerInstance, setWebcontainerInstance] = useState<WebContainer | null>(null)
   const [selectedFile, setSelectedFile] = useState('src/App.jsx')
   const [fileContent, setFileContent] = useState(code)
@@ -493,11 +518,32 @@ export default function BoltPrototype({ code, projectName }: BoltPrototypeProps)
     }
   }, [])
 
+  // Save code to localStorage whenever it changes
+  useEffect(() => {
+    if (code && code.length > 100) {
+      localStorage.setItem('prototype-last-code', code)
+      localStorage.setItem('prototype-last-updated', new Date().toISOString())
+    }
+  }, [code])
+
   // Initialize WebContainer
   useEffect(() => {
     let mounted = true
 
     const initWebContainer = async () => {
+      // Check if code has changed
+      const currentCodeHash = hashCode(code)
+      const codeChanged = currentCodeHash !== lastCodeHash && lastCodeHash !== ''
+      
+      // If we already have a running instance with the same code, don't reinitialize
+      if (isInitialized && webcontainerInstance && isRunning && previewUrl && !codeChanged) {
+        console.log('WebContainer already initialized with same code, skipping initialization')
+        return
+      }
+      
+      // Update the hash
+      lastCodeHash = currentCodeHash
+
       try {
         setTerminalOutput(prev => [...prev, 'Getting WebContainer instance...'])
         
@@ -511,7 +557,7 @@ export default function BoltPrototype({ code, projectName }: BoltPrototypeProps)
         setWebcontainerInstance(instance)
         setTerminalOutput(prev => [...prev, '✓ WebContainer ready'])
         
-        // Check if already initialized
+        // Check if already initialized and running
         if (!isInitialized) {
           // Start with the absolute simplest component possible
           const testComponent = `function App() {
@@ -585,8 +631,22 @@ export default App`
           })
           )
 
-          // Wait for server to be ready
+          // Wait for server to be ready with timeout
+          let serverStarted = false
+          const serverTimeout = setTimeout(() => {
+            if (!serverStarted && mounted) {
+              console.warn('Server start timeout - attempting to set URL manually')
+              // Try to set the URL manually after timeout
+              setPreviewUrl('http://localhost:5173')
+              setIsRunning(true)
+              setIsLoading(false)
+              setTerminalOutput(prev => [...prev, '⚠ Server may be running on http://localhost:5173'])
+            }
+          }, 10000) // 10 second timeout
+          
           instance.on('server-ready', (port, url) => {
+            serverStarted = true
+            clearTimeout(serverTimeout)
             if (mounted) {
               setPreviewUrl(url)
               setIsRunning(true)
@@ -981,6 +1041,21 @@ export default App`
           )}
         </div>
         <div className="flex items-center gap-1">
+          {/* Annotation Toggle - only show if handler exists */}
+          {onToggleAnnotations && (
+            <div className="flex items-center gap-1 mr-2 border-r border-gray-200 pr-2">
+              <button
+                onClick={onToggleAnnotations}
+                className={`p-1.5 rounded transition-colors ${
+                  showAnnotations ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
+                }`}
+                title={showAnnotations ? 'Hide Annotation Layers' : 'Show Annotation Layers'}
+              >
+                <Layers size={14} />
+              </button>
+            </div>
+          )}
+          
           {/* Panel Toggle Buttons */}
           <div className="flex items-center gap-1 mr-2 border-r border-gray-200 pr-2">
             <button
@@ -1061,6 +1136,21 @@ export default App`
           >
             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
+          
+          {/* Regenerate button - only show if handler exists */}
+          {onRegenerate && (
+            <>
+              <div className="w-px h-5 bg-gray-300 mx-1" />
+              <button
+                onClick={onRegenerate}
+                disabled={isRegenerating}
+                className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={12} className={isRegenerating ? 'animate-spin' : ''} />
+                <span>{isRegenerating ? 'Regenerating...' : 'Regenerate'}</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1165,6 +1255,17 @@ export default App`
                   <div className="text-center">
                     <Loader2 className="animate-spin mx-auto mb-3 text-purple-600" size={32} />
                     <p className="text-sm text-gray-600">Starting server...</p>
+                    <button
+                      onClick={() => {
+                        // Try to force set the preview URL
+                        setPreviewUrl('http://localhost:5173')
+                        setIsRunning(true)
+                        setIsLoading(false)
+                      }}
+                      className="mt-4 px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                    >
+                      Try Manual Connect
+                    </button>
                   </div>
                 </div>
               )}

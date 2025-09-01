@@ -24,7 +24,9 @@
       "WebFetch(domain:codesandbox.io)",
       "Bash(git commit:*)",
       "Bash(pkill:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

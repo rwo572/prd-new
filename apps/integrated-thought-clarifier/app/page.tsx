@@ -7,20 +7,22 @@ import MarkdownEditor from '@/components/MarkdownEditor'
 import ApiKeyManager from '@/components/ApiKeyManager'
 import GitHubIntegration from '@/components/GitHubIntegration'
 import ModelSelector from '@/components/model-selector'
-import { FileText, Settings, Github, MessageSquare, Download, Save, Code } from 'lucide-react'
+import AnnotatedPrototype from '@/components/AnnotatedPrototype'
+import { FileText, Settings, Github, MessageSquare, Download, Save, Layers } from 'lucide-react'
 import { PRDContext, Message } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { generatePRD } from '@/lib/ai-service'
 import { savePRDLocally, exportPRD } from '@/lib/storage'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'prd' | 'code' | 'settings'>('prd')
+  const [activeTab, setActiveTab] = useState<'prd' | 'annotated' | 'settings'>('prd')
   const [showAIDiscovery, setShowAIDiscovery] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [githubConnected, setGithubConnected] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const [prototypeCode, setPrototypeCode] = useLocalStorage<string>('prototype-code', '')
+  const [annotationConfig, setAnnotationConfig] = useState<any>(null)
   
   // Use localStorage hooks - will only work on client
   const [messages, setMessages] = useLocalStorage<Message[]>('prd-messages', [])
@@ -142,15 +144,15 @@ export default function Home() {
           </button>
 
           <button
-            onClick={() => setActiveTab('code')}
+            onClick={() => setActiveTab('annotated')}
             className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
-              activeTab === 'code' 
+              activeTab === 'annotated' 
                 ? 'bg-purple-100 text-purple-700' 
                 : 'hover:bg-gray-100 text-gray-600'
             }`}
             title="Prototype"
           >
-            <Code size={20} />
+            <Layers size={20} />
             <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
               Prototype
             </span>
@@ -240,28 +242,128 @@ export default function Home() {
               prototypeCode={prototypeCode}
               setPrototypeCode={setPrototypeCode}
               onGeneratePrototype={() => {
-                // After generating, switch to code tab
-                setActiveTab('code')
+                // After generating, switch to annotated tab
+                setActiveTab('annotated')
               }}
               showPrototypePreview={false}
             />
           )}
 
-          {activeTab === 'code' && (
-            <MarkdownEditor
-              content={prdContent}
-              onChange={setPrdContent}
-              projectName={currentProject}
-              anthropicApiKey={apiKeys.anthropic}
-              selectedModel={apiKeys.selectedModel}
-              prototypeCode={prototypeCode}
-              setPrototypeCode={setPrototypeCode}
-              onGeneratePrototype={() => {
-                // Prototype generated successfully, already on code tab
-              }}
-              showPrototypePreview={true}
-              codeOnly={true}
-            />
+          {activeTab === 'annotated' && (
+            <div className="h-full relative">
+              {annotationConfig && prototypeCode ? (
+                <AnnotatedPrototype
+                  code={prototypeCode}
+                  projectName={currentProject}
+                  config={annotationConfig}
+                  isRegenerating={isGenerating}
+                  onRegenerate={async () => {
+                    if (!prdContent.trim()) {
+                      alert('Please enter PRD content first')
+                      return
+                    }
+                    
+                    if (!apiKeys.anthropic) {
+                      alert('Please add your Anthropic API key in Settings')
+                      setActiveTab('settings')
+                      return
+                    }
+                    
+                    setIsGenerating(true)
+                    try {
+                      // Generate annotated prototype
+                      const response = await fetch('/api/generate-annotated-prototype', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          prdContent,
+                          apiKey: apiKeys.anthropic,
+                          modelId: apiKeys.selectedModel || 'claude-3-5-sonnet-20241022',
+                          includeAnnotations: true
+                        })
+                      })
+                      
+                      if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`)
+                      }
+                      
+                      const data = await response.json()
+                      
+                      if (data.success && data.code && data.annotationConfig) {
+                        setPrototypeCode(data.code)
+                        setAnnotationConfig(data.annotationConfig)
+                      } else {
+                        throw new Error(data.error || 'Failed to generate annotated prototype')
+                      }
+                    } catch (error) {
+                      console.error('Error generating annotated prototype:', error)
+                      alert(`Error: ${error instanceof Error ? error.message : 'Failed to generate annotated prototype'}`)
+                    } finally {
+                      setIsGenerating(false)
+                    }
+                  }}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gray-50">
+                  <div className="text-center">
+                    <Layers className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold mb-2">No Annotated Prototype</h3>
+                    <p className="text-gray-600 mb-4">Generate an annotated prototype from your PRD</p>
+                    <button
+                      onClick={async () => {
+                        if (!prdContent.trim()) {
+                          alert('Please enter PRD content first')
+                          return
+                        }
+                        
+                        if (!apiKeys.anthropic) {
+                          alert('Please add your Anthropic API key in Settings')
+                          setActiveTab('settings')
+                          return
+                        }
+                        
+                        setIsGenerating(true)
+                        try {
+                          // Generate annotated prototype
+                          const response = await fetch('/api/generate-annotated-prototype', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              prdContent,
+                              apiKey: apiKeys.anthropic,
+                              modelId: apiKeys.selectedModel || 'claude-3-5-sonnet-20241022',
+                              includeAnnotations: true
+                            })
+                          })
+                          
+                          if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`)
+                          }
+                          
+                          const data = await response.json()
+                          
+                          if (data.success && data.code && data.annotationConfig) {
+                            setPrototypeCode(data.code)
+                            setAnnotationConfig(data.annotationConfig)
+                          } else {
+                            throw new Error(data.error || 'Failed to generate annotated prototype')
+                          }
+                        } catch (error) {
+                          console.error('Error generating annotated prototype:', error)
+                          alert(`Error: ${error instanceof Error ? error.message : 'Failed to generate annotated prototype'}`)
+                        } finally {
+                          setIsGenerating(false)
+                        }
+                      }}
+                      disabled={isGenerating}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isGenerating ? 'Generating...' : 'Generate Annotated Prototype'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {activeTab === 'settings' && (
