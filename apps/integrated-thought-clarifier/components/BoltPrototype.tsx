@@ -18,7 +18,9 @@ import {
   Download,
   Maximize2,
   Minimize2,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -415,41 +417,22 @@ export default function BoltPrototype({ code, projectName }: BoltPrototypeProps)
   const [fileContent, setFileContent] = useState(code)
   const [terminalOutput, setTerminalOutput] = useState<string[]>(['Initializing WebContainer...'])
   const [isRunning, setIsRunning] = useState(false)
-  const [showTerminal, setShowTerminal] = useState(() => {
-    // Load saved terminal visibility from localStorage
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('prototype-show-terminal')
-      return saved !== null ? saved === 'true' : true
-    }
-    return true
-  })
-  const [showFileExplorer, setShowFileExplorer] = useState(() => {
-    // Load saved file explorer visibility from localStorage
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('prototype-show-explorer')
-      return saved !== null ? saved === 'true' : true
-    }
-    return true
-  })
+  const [showTerminal, setShowTerminal] = useState(true) // Default for SSR
+  const [showFileExplorer, setShowFileExplorer] = useState(true) // Default for SSR
+  const [showCodeEditor, setShowCodeEditor] = useState(true) // Default for SSR
+  const [showPreview, setShowPreview] = useState(true) // Default for SSR
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [editorWidth, setEditorWidth] = useState(() => {
-    // Load saved width from localStorage
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('prototype-editor-width')
-      return saved ? parseFloat(saved) : 50
-    }
-    return 50
-  })
+  const [editorWidth, setEditorWidth] = useState(50) // Default for SSR
   const [isDragging, setIsDragging] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const terminalRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const [fileTree] = useState<FileNode[]>([
+  const [fileTree, setFileTree] = useState<FileNode[]>([
     {
       name: 'src',
       path: 'src',
@@ -463,7 +446,7 @@ export default function BoltPrototype({ code, projectName }: BoltPrototypeProps)
           name: 'lib',
           path: 'src/lib',
           type: 'directory',
-          expanded: true,
+          expanded: false, // Start collapsed
           children: [
             { name: 'utils.js', path: 'src/lib/utils.js', type: 'file', content: files.src.directory['lib'].directory['utils.js'].file.contents }
           ]
@@ -476,6 +459,39 @@ export default function BoltPrototype({ code, projectName }: BoltPrototypeProps)
     { name: 'postcss.config.js', path: 'postcss.config.js', type: 'file', content: files['postcss.config.js'].file.contents },
     { name: 'index.html', path: 'index.html', type: 'file', content: files['index.html'].file.contents }
   ])
+
+  // Load saved preferences from localStorage after mount
+  useEffect(() => {
+    // Load saved terminal visibility
+    const savedTerminal = localStorage.getItem('prototype-show-terminal')
+    if (savedTerminal !== null) {
+      setShowTerminal(savedTerminal === 'true')
+    }
+    
+    // Load saved file explorer visibility
+    const savedExplorer = localStorage.getItem('prototype-show-explorer')
+    if (savedExplorer !== null) {
+      setShowFileExplorer(savedExplorer === 'true')
+    }
+    
+    // Load saved code editor visibility
+    const savedCode = localStorage.getItem('prototype-show-code')
+    if (savedCode !== null) {
+      setShowCodeEditor(savedCode === 'true')
+    }
+    
+    // Load saved preview visibility
+    const savedPreview = localStorage.getItem('prototype-show-preview')
+    if (savedPreview !== null) {
+      setShowPreview(savedPreview === 'true')
+    }
+    
+    // Load saved editor width
+    const savedWidth = localStorage.getItem('prototype-editor-width')
+    if (savedWidth) {
+      setEditorWidth(parseFloat(savedWidth))
+    }
+  }, [])
 
   // Initialize WebContainer
   useEffect(() => {
@@ -805,6 +821,26 @@ export default App`
     localStorage.setItem('prototype-show-explorer', newState.toString())
   }
 
+  const toggleCodeEditor = (show?: boolean) => {
+    const newState = show !== undefined ? show : !showCodeEditor
+    // Don't allow hiding both code and preview
+    if (!newState && !showPreview) {
+      togglePreview(true)
+    }
+    setShowCodeEditor(newState)
+    localStorage.setItem('prototype-show-code', newState.toString())
+  }
+
+  const togglePreview = (show?: boolean) => {
+    const newState = show !== undefined ? show : !showPreview
+    // Don't allow hiding both code and preview
+    if (!newState && !showCodeEditor) {
+      toggleCodeEditor(true)
+    }
+    setShowPreview(newState)
+    localStorage.setItem('prototype-show-preview', newState.toString())
+  }
+
   // Handle drag to resize panels
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -814,6 +850,9 @@ export default App`
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging || !containerRef.current) return
+      
+      // Only allow dragging when both panels are visible
+      if (!showCodeEditor || !showPreview) return
       
       const container = containerRef.current.getBoundingClientRect()
       let relativeX = e.clientX - container.left
@@ -852,32 +891,54 @@ export default App`
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [isDragging, showFileExplorer])
+  }, [isDragging, showFileExplorer, showCodeEditor, showPreview])
 
-  const toggleDirectory = (dir: FileNode) => {
-    // Since fileTree is static, we'd need to make it stateful to toggle
-    // For now, directories are always expanded
+  const toggleDirectory = (targetPath: string) => {
+    const toggleInTree = (nodes: FileNode[]): FileNode[] => {
+      return nodes.map(node => {
+        if (node.path === targetPath && node.type === 'directory') {
+          return { ...node, expanded: !node.expanded }
+        }
+        if (node.children) {
+          return { ...node, children: toggleInTree(node.children) }
+        }
+        return node
+      })
+    }
+    
+    setFileTree(prevTree => toggleInTree(prevTree))
   }
 
   const renderFileTree = (nodes: FileNode[], level = 0) => {
     return nodes.map(node => (
       <div key={node.path}>
         <button
-          onClick={() => node.type === 'directory' ? toggleDirectory(node) : handleFileSelect(node)}
+          onClick={() => node.type === 'directory' ? toggleDirectory(node.path) : handleFileSelect(node)}
           className={`w-full flex items-center gap-1 px-2 py-1 text-sm hover:bg-gray-100 transition-colors ${
-            selectedFile === node.path ? 'bg-purple-50 text-purple-700' : 'text-gray-700'
+            node.type === 'file' && selectedFile === node.path 
+              ? 'bg-purple-50 text-purple-700' 
+              : node.type === 'directory' 
+                ? 'text-gray-800 font-medium' 
+                : 'text-gray-700'
           }`}
           style={{ paddingLeft: `${level * 12 + 8}px` }}
+          title={node.type === 'directory' ? `Click to ${node.expanded ? 'collapse' : 'expand'}` : node.path}
         >
           {node.type === 'directory' ? (
             <>
-              {node.expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              {node.expanded ? <FolderOpen size={14} /> : <Folder size={14} />}
+              <span className="transition-transform inline-block" style={{ transform: node.expanded ? 'rotate(90deg)' : 'rotate(0)' }}>
+                <ChevronRight size={12} />
+              </span>
+              {node.expanded ? (
+                <FolderOpen size={14} className="text-blue-600" />
+              ) : (
+                <Folder size={14} className="text-blue-500" />
+              )}
             </>
           ) : (
-            <FileText size={14} className="ml-3.5" />
+            <FileText size={14} className="ml-3.5 text-gray-500" />
           )}
-          <span className="ml-1">{node.name}</span>
+          <span className="ml-1 truncate">{node.name}</span>
         </button>
         {node.type === 'directory' && node.expanded && node.children && (
           <div>{renderFileTree(node.children, level + 1)}</div>
@@ -920,10 +981,43 @@ export default App`
           )}
         </div>
         <div className="flex items-center gap-1">
+          {/* Panel Toggle Buttons */}
+          <div className="flex items-center gap-1 mr-2 border-r border-gray-200 pr-2">
+            <button
+              onClick={() => toggleFileExplorer()}
+              className={`p-1.5 rounded transition-colors ${
+                showFileExplorer ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
+              }`}
+              title={showFileExplorer ? 'Hide Files' : 'Show Files'}
+            >
+              <Folder size={14} />
+            </button>
+            <button
+              onClick={() => toggleCodeEditor()}
+              className={`p-1.5 rounded transition-colors ${
+                showCodeEditor ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
+              }`}
+              title={showCodeEditor ? 'Hide Code' : 'Show Code'}
+            >
+              <Code2 size={14} />
+            </button>
+            <button
+              onClick={() => togglePreview()}
+              className={`p-1.5 rounded transition-colors ${
+                showPreview ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
+              }`}
+              title={showPreview ? 'Hide Preview' : 'Show Preview'}
+            >
+              {showPreview ? <Eye size={14} /> : <EyeOff size={14} />}
+            </button>
+          </div>
+          
+          {/* Action Buttons */}
           <button
             onClick={handleCopy}
             className="px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 transition-colors flex items-center gap-1"
             title="Copy code"
+            disabled={!showCodeEditor}
           >
             <Copy size={12} />
             <span>{copied ? 'Copied!' : 'Copy'}</span>
@@ -932,6 +1026,7 @@ export default App`
             onClick={handleDownload}
             className="px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 transition-colors flex items-center gap-1"
             title="Download file"
+            disabled={!showCodeEditor}
           >
             <Download size={12} />
             <span>Download</span>
@@ -991,80 +1086,90 @@ export default App`
           )}
 
           {/* Code Editor */}
-          <div className="flex flex-col min-w-0 relative" style={{ width: `${editorWidth}%` }}>
-            <div className="bg-gray-100 px-3 py-1 border-b border-gray-200 flex items-center gap-2">
-              {!showFileExplorer && (
-                <button
-                  onClick={() => toggleFileExplorer(true)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <ChevronRight size={12} />
-                </button>
-              )}
-              <span className="text-xs text-gray-600">{selectedFile}</span>
+          {showCodeEditor && (
+            <div className="flex flex-col min-w-0 relative" style={{ 
+              width: showPreview ? `${editorWidth}%` : '100%' 
+            }}>
+              <div className="bg-gray-100 px-3 py-1 border-b border-gray-200 flex items-center gap-2">
+                {!showFileExplorer && (
+                  <button
+                    onClick={() => toggleFileExplorer(true)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <ChevronRight size={12} />
+                  </button>
+                )}
+                <span className="text-xs text-gray-600">{selectedFile}</span>
+              </div>
+              <div className="flex-1">
+                <MonacoEditor
+                  height="100%"
+                  language={selectedFile.endsWith('.css') ? 'css' : 'javascript'}
+                  value={fileContent}
+                  onChange={handleFileChange}
+                  theme="vs"
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    lineNumbers: 'on',
+                    wordWrap: 'on',
+                    automaticLayout: true,
+                    tabSize: 2,
+                    scrollBeyondLastLine: false,
+                    padding: { top: 10, bottom: 10 }
+                  }}
+                />
+              </div>
             </div>
-            <div className="flex-1">
-              <MonacoEditor
-                height="100%"
-                language={selectedFile.endsWith('.css') ? 'css' : 'javascript'}
-                value={fileContent}
-                onChange={handleFileChange}
-                theme="vs"
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 13,
-                  lineNumbers: 'on',
-                  wordWrap: 'on',
-                  automaticLayout: true,
-                  tabSize: 2,
-                  scrollBeyondLastLine: false,
-                  padding: { top: 10, bottom: 10 }
-                }}
-              />
-            </div>
-          </div>
+          )}
 
-          {/* Draggable Divider */}
-          <div
-            className={`w-1 bg-gray-200 hover:bg-purple-400 cursor-col-resize transition-colors relative ${
-              isDragging ? 'bg-purple-500' : ''
-            }`}
-            onMouseDown={handleMouseDown}
-            style={{ touchAction: 'none' }}
-          >
-            <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
-          </div>
+          {/* Draggable Divider - only show when both panels are visible */}
+          {showCodeEditor && showPreview && (
+            <div
+              className={`w-1 bg-gray-200 hover:bg-purple-400 cursor-col-resize transition-colors relative ${
+                isDragging ? 'bg-purple-500' : ''
+              }`}
+              onMouseDown={handleMouseDown}
+              style={{ touchAction: 'none' }}
+            >
+              <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
+            </div>
+          )}
 
           {/* Preview */}
-          <div className="flex-1 flex flex-col min-w-0" style={{ width: `${100 - editorWidth}%` }}>
-            <div className="bg-gray-100 px-3 py-1 border-b border-gray-200">
-              <span className="text-xs text-gray-600">Preview</span>
+          {showPreview && (
+            <div className="flex-1 flex flex-col min-w-0" style={{ 
+              width: showCodeEditor ? `${100 - editorWidth}%` : '100%' 
+            }}>
+              <div className="bg-gray-100 px-3 py-1 border-b border-gray-200">
+                <span className="text-xs text-gray-600">Preview</span>
+              </div>
+              {isLoading ? (
+                <div className="h-full flex items-center justify-center bg-gray-50">
+                  <div className="text-center">
+                    <Loader2 className="animate-spin mx-auto mb-3 text-purple-600" size={32} />
+                    <p className="text-sm text-gray-600">Setting up development environment...</p>
+                    <p className="text-xs text-gray-500 mt-2">This may take a moment</p>
+                  </div>
+                </div>
+              ) : previewUrl ? (
+                <iframe
+                  ref={iframeRef}
+                  src={previewUrl}
+                  className="w-full h-full bg-white"
+                  title="Preview"
+                  allow="cross-origin-isolated"
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gray-50">
+                  <div className="text-center">
+                    <Loader2 className="animate-spin mx-auto mb-3 text-purple-600" size={32} />
+                    <p className="text-sm text-gray-600">Starting server...</p>
+                  </div>
+                </div>
+              )}
             </div>
-            {isLoading ? (
-              <div className="h-full flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                  <Loader2 className="animate-spin mx-auto mb-3 text-purple-600" size={32} />
-                  <p className="text-sm text-gray-600">Setting up development environment...</p>
-                  <p className="text-xs text-gray-500 mt-2">This may take a moment</p>
-                </div>
-              </div>
-            ) : previewUrl ? (
-              <iframe
-                ref={iframeRef}
-                src={previewUrl}
-                className="w-full h-full bg-white"
-                title="Preview"
-                allow="cross-origin-isolated"
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                  <Loader2 className="animate-spin mx-auto mb-3 text-purple-600" size={32} />
-                  <p className="text-sm text-gray-600">Starting server...</p>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Terminal */}

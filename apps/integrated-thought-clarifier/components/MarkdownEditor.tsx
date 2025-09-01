@@ -47,14 +47,7 @@ export default function MarkdownEditor({
 }: MarkdownEditorProps) {
   const [showPreview, setShowPreview] = useState(true)
   const [isClient, setIsClient] = useState(false)
-  const [editorWidth, setEditorWidth] = useState(() => {
-    // Load saved width from localStorage
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('prd-editor-width')
-      return saved ? parseFloat(saved) : 50
-    }
-    return 50
-  })
+  const [editorWidth, setEditorWidth] = useState(50) // Always start with 50 for SSR
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   
@@ -95,9 +88,14 @@ export default function MarkdownEditor({
     'Finalizing the prototype...'
   ]
 
-  // Set client flag after mount to avoid hydration issues
+  // Set client flag after mount to avoid hydration issues and load saved width
   useEffect(() => {
     setIsClient(true)
+    // Load saved width from localStorage after mount
+    const saved = localStorage.getItem('prd-editor-width')
+    if (saved) {
+      setEditorWidth(parseFloat(saved))
+    }
   }, [])
 
   const handleCopy = async () => {
