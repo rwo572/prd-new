@@ -38,8 +38,6 @@ interface BoltPrototypeProps {
   projectName: string
   onRegenerate?: () => void
   isRegenerating?: boolean
-  showAnnotations?: boolean
-  onToggleAnnotations?: () => void
 }
 
 interface FileNode {
@@ -433,9 +431,7 @@ export default function BoltPrototype({
   code, 
   projectName,
   onRegenerate,
-  isRegenerating = false,
-  showAnnotations = false,
-  onToggleAnnotations
+  isRegenerating = false
 }: BoltPrototypeProps) {
   const [webcontainerInstance, setWebcontainerInstance] = useState<WebContainer | null>(null)
   const [selectedFile, setSelectedFile] = useState('src/App.jsx')
@@ -518,6 +514,42 @@ export default function BoltPrototype({
     }
   }, [])
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Check if user is typing in an input/textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+        return
+      }
+      
+      // Skip Monaco editor check in BoltPrototype as we don't have a Monaco editor here
+      
+      switch(e.key) {
+        case '1':
+          e.preventDefault()
+          toggleFileExplorer()
+          break
+        case '2':
+          e.preventDefault()
+          toggleCodeEditor()
+          break
+        case '3':
+          e.preventDefault()
+          togglePreview()
+          break
+        case '4':
+          e.preventDefault()
+          toggleTerminal()
+          break
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [showFileExplorer, showCodeEditor, showPreview, showTerminal])
+
+
   // Save code to localStorage whenever it changes
   useEffect(() => {
     if (code && code.length > 100) {
@@ -574,7 +606,9 @@ export default App`
           
           // Update the files with test code first
           const filesWithCode = { ...files }
-          filesWithCode.src.directory['App.jsx'].file.contents = testComponent
+          // Use provided code if available, otherwise use test component
+          const initialCode = code && code.trim().length > 100 ? code : testComponent
+          filesWithCode.src.directory['App.jsx'].file.contents = initialCode
           
           // Mount files
           setTerminalOutput(prev => [...prev, 'Mounting file system...'])
@@ -820,11 +854,36 @@ export default App`
 
   // Update App.jsx when code prop changes
   useEffect(() => {
-    if (webcontainerInstance && code && selectedFile === 'src/App.jsx') {
-      webcontainerInstance.fs.writeFile('src/App.jsx', code).catch(console.error)
-      setFileContent(code)
+    if (webcontainerInstance && code && code.trim().length > 0) {
+      // Ensure the code is valid
+      let finalCode = code
+      
+      // Add React import if missing
+      if (!finalCode.includes('import React') && !finalCode.includes("from 'react'")) {
+        finalCode = `import React from 'react'\n${finalCode}`
+      }
+      
+      // Ensure export exists
+      if (!finalCode.includes('export default')) {
+        // Try to find the main component name
+        const componentMatch = finalCode.match(/(?:function|const)\s+(\w+)\s*(?:\(|=)/);
+        const componentName = componentMatch ? componentMatch[1] : 'App';
+        finalCode += `\n\nexport default ${componentName}`
+      }
+      
+      webcontainerInstance.fs.writeFile('src/App.jsx', finalCode)
+        .then(() => {
+          setFileContent(finalCode)
+          if (selectedFile === 'src/App.jsx') {
+            setTerminalOutput(prev => [...prev, '✓ App.jsx updated'])
+          }
+        })
+        .catch(err => {
+          console.error('Error updating App.jsx:', err)
+          setTerminalOutput(prev => [...prev, `❌ Error updating App.jsx: ${err}`])
+        })
     }
-  }, [code, webcontainerInstance, selectedFile])
+  }, [code, webcontainerInstance])
 
   const handleFileSelect = async (file: FileNode) => {
     if (file.type === 'file' && webcontainerInstance) {
@@ -1030,40 +1089,19 @@ export default App`
       {/* Header */}
       <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Code2 size={16} className="text-purple-600" />
-            <h3 className="font-semibold text-sm text-gray-900">Development Environment</h3>
-          </div>
-          {isRunning && (
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-              Live Preview
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {/* Annotation Toggle - only show if handler exists */}
-          {onToggleAnnotations && (
-            <div className="flex items-center gap-1 mr-2 border-r border-gray-200 pr-2">
-              <button
-                onClick={onToggleAnnotations}
-                className={`p-1.5 rounded transition-colors ${
-                  showAnnotations ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
-                }`}
-                title={showAnnotations ? 'Hide Annotation Layers' : 'Show Annotation Layers'}
-              >
-                <Layers size={14} />
-              </button>
-            </div>
-          )}
+          <h3 className="font-semibold text-sm text-gray-900">Prototype</h3>
           
-          {/* Panel Toggle Buttons */}
-          <div className="flex items-center gap-1 mr-2 border-r border-gray-200 pr-2">
+          {/* Divider */}
+          <div className="h-5 w-px bg-gray-300" />
+          
+          {/* Panel Toggle Buttons - moved to left */}
+          <div className="flex items-center gap-1">
             <button
               onClick={() => toggleFileExplorer()}
               className={`p-1.5 rounded transition-colors ${
                 showFileExplorer ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
               }`}
-              title={showFileExplorer ? 'Hide Files' : 'Show Files'}
+              title="Explorer (1)"
             >
               <Folder size={14} />
             </button>
@@ -1072,7 +1110,7 @@ export default App`
               className={`p-1.5 rounded transition-colors ${
                 showCodeEditor ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
               }`}
-              title={showCodeEditor ? 'Hide Code' : 'Show Code'}
+              title="Code (2)"
             >
               <Code2 size={14} />
             </button>
@@ -1081,12 +1119,22 @@ export default App`
               className={`p-1.5 rounded transition-colors ${
                 showPreview ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
               }`}
-              title={showPreview ? 'Hide Preview' : 'Show Preview'}
+              title="Preview (3)"
             >
               {showPreview ? <Eye size={14} /> : <EyeOff size={14} />}
             </button>
+            <button
+              onClick={() => toggleTerminal()}
+              className={`p-1.5 rounded transition-colors ${
+                showTerminal ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
+              }`}
+              title="Terminal (4)"
+            >
+              <Terminal size={14} />
+            </button>
           </div>
-          
+        </div>
+        <div className="flex items-center gap-1">
           {/* Action Buttons */}
           <button
             onClick={handleCopy}
@@ -1105,15 +1153,6 @@ export default App`
           >
             <Download size={12} />
             <span>Download</span>
-          </button>
-          <button
-            onClick={() => toggleTerminal()}
-            className={`p-1.5 rounded transition-colors ${
-              showTerminal ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-600'
-            }`}
-            title="Toggle Terminal"
-          >
-            <Terminal size={14} />
           </button>
           <button
             onClick={() => {

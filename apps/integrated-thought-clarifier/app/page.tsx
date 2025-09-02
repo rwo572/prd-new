@@ -7,22 +7,22 @@ import EnhancedPRDEditor from '@/components/EnhancedPRDEditor'
 import ApiKeyManager from '@/components/ApiKeyManager'
 import GitHubIntegration from '@/components/GitHubIntegration'
 import ModelSelector from '@/components/model-selector'
-import AnnotatedPrototype from '@/components/AnnotatedPrototype'
-import { FileText, Settings, Github, MessageSquare, Download, Save, Layers, RefreshCw, Sparkles } from 'lucide-react'
+import BoltPrototype from '@/components/BoltPrototype'
+import GitHubCommitsView from '@/components/GitHubCommitsView'
+import { FileText, Settings, Github, MessageSquare, Download, Save, Code2, RefreshCw, Sparkles, GitCommit } from 'lucide-react'
 import { PRDContext, Message } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { generatePRD } from '@/lib/ai-service'
 import { savePRDLocally, exportPRD } from '@/lib/storage'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'editor' | 'development' | 'settings'>('editor')
+  const [activeTab, setActiveTab] = useState<'editor' | 'prototype' | 'commits' | 'settings'>('editor')
   const [showAIDiscovery, setShowAIDiscovery] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [githubConnected, setGithubConnected] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const [prototypeCode, setPrototypeCode] = useLocalStorage<string>('prototype-code', '')
-  const [annotationConfig, setAnnotationConfig] = useState<any>(null)
   
   // Use localStorage hooks - will only work on client
   const [messages, setMessages] = useLocalStorage<Message[]>('prd-messages', [])
@@ -110,6 +110,66 @@ export default function Home() {
     }))
   }
 
+  const handleGeneratePrototype = async () => {
+    if (!prdContent || prdContent.trim().length < 10) {
+      alert('Please write some PRD content first')
+      return
+    }
+    
+    if (!apiKeys.anthropic) {
+      alert('Please add your Anthropic API key in Settings')
+      setActiveTab('settings')
+      return
+    }
+    
+    // If there's existing code, confirm before regenerating
+    if (prototypeCode && prototypeCode.trim().length > 100) {
+      const shouldRegenerate = window.confirm('You have an existing prototype. Regenerating will replace it. Continue?')
+      if (!shouldRegenerate) {
+        return
+      }
+    }
+    
+    // Store existing code as backup
+    const previousCode = prototypeCode
+    
+    setIsGenerating(true)
+    try {
+      const response = await fetch('/api/generate-prototype', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prdContent,
+          apiKey: apiKeys.anthropic,
+          modelId: apiKeys.selectedModel || 'claude-3-5-sonnet-20241022'
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.success && data.code) {
+        setPrototypeCode(data.code)
+        // Switch to prototype tab to show the generated prototype
+        setActiveTab('prototype')
+      } else {
+        throw new Error(data.error || 'Failed to generate prototype')
+      }
+    } catch (error) {
+      console.error('Error generating prototype:', error)
+      // Optionally restore previous code if user wants
+      const shouldRestore = window.confirm('Failed to generate prototype. Would you like to keep your existing prototype?')
+      if (shouldRestore && previousCode) {
+        setPrototypeCode(previousCode)
+      }
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Collapsed Sidebar - Icons Only */}
@@ -144,22 +204,37 @@ export default function Home() {
           </button>
 
           <button
-            onClick={() => setActiveTab('development')}
+            onClick={() => setActiveTab('prototype')}
             className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
-              activeTab === 'development' 
+              activeTab === 'prototype' 
                 ? 'bg-purple-100 text-purple-700' 
                 : 'hover:bg-gray-100 text-gray-600'
             }`}
-            title="Development Environment"
+            title="Prototype"
           >
-            <Layers size={20} />
+            <Code2 size={20} />
             {isGenerating && (
               <div className="absolute top-1 right-1">
                 <div className="h-2 w-2 bg-purple-600 rounded-full animate-pulse"></div>
               </div>
             )}
             <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-              Development Environment {isGenerating && '(Generating...)'}
+              Prototype {isGenerating && '(Generating...)'}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('commits')}
+            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
+              activeTab === 'commits' 
+                ? 'bg-purple-100 text-purple-700' 
+                : 'hover:bg-gray-100 text-gray-600'
+            }`}
+            title="Commits"
+          >
+            <GitCommit size={20} />
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+              GitHub Commits
             </span>
           </button>
         </nav>
@@ -244,58 +319,11 @@ export default function Home() {
               projectName={currentProject}
               anthropicApiKey={apiKeys.anthropic}
               selectedModel={apiKeys.selectedModel}
-              onGeneratePrototype={async () => {
-                if (!prdContent.trim()) {
-                  alert('Please enter PRD content first')
-                  return
-                }
-                
-                if (!apiKeys.anthropic) {
-                  alert('Please add your Anthropic API key in Settings')
-                  setActiveTab('settings')
-                  return
-                }
-                
-                setIsGenerating(true)
-                try {
-                  const response = await fetch('/api/generate-annotated-prototype', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      prdContent,
-                      apiKey: apiKeys.anthropic,
-                      modelId: apiKeys.selectedModel || 'claude-3-5-sonnet-20241022',
-                      includeAnnotations: true
-                    })
-                  })
-                  
-                  if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`)
-                  }
-                  
-                  const data = await response.json()
-                  
-                  if (data.success && data.code) {
-                    setPrototypeCode(data.code)
-                    if (data.annotationConfig) {
-                      setAnnotationConfig(data.annotationConfig)
-                    }
-                    // Switch to development tab to show the generated prototype
-                    setActiveTab('development')
-                  } else {
-                    throw new Error(data.error || 'Failed to generate prototype')
-                  }
-                } catch (error) {
-                  console.error('Error generating prototype:', error)
-                  alert('Failed to generate prototype. Please try again.')
-                } finally {
-                  setIsGenerating(false)
-                }
-              }}
+              onGeneratePrototype={handleGeneratePrototype}
             />
           )}
 
-          {activeTab === 'development' && (
+          {activeTab === 'prototype' && (
             <div className="h-full overflow-hidden bg-white">
               {isGenerating ? (
                 <div className="h-full flex flex-col items-center justify-center">
@@ -310,30 +338,40 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-              ) : annotationConfig && prototypeCode ? (
-                <AnnotatedPrototype
+              ) : prototypeCode ? (
+                <BoltPrototype
                   code={prototypeCode}
                   projectName={currentProject}
-                  config={annotationConfig}
-                  isRegenerating={false}
-                  onRegenerate={() => {}}
+                  isRegenerating={isGenerating}
+                  onRegenerate={handleGeneratePrototype}
                 />
               ) : (
-                <div className="h-full flex items-center justify-center bg-gray-50">
-                  <div className="text-center">
-                    <Layers className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-semibold mb-2">No Prototype Generated</h3>
-                    <p className="text-gray-600 mb-4">Generate a prototype from your PRD in the Editor tab</p>
-                    <button
-                      onClick={() => setActiveTab('editor')}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                      Go to Editor
-                    </button>
+                <div className="h-full bg-white">
+                  {/* Prototype Header */}
+                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 flex items-center">
+                    <h3 className="font-semibold text-sm text-gray-900">Prototype</h3>
+                  </div>
+                  {/* Empty State Content */}
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <Code2 className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <h3 className="text-lg font-semibold mb-2">No Prototype Generated</h3>
+                      <p className="text-gray-600 mb-4">Generate a prototype from your PRD in the Editor tab</p>
+                      <button
+                        onClick={() => setActiveTab('editor')}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        Go to Editor
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
+          )}
+
+          {activeTab === 'commits' && (
+            <GitHubCommitsView projectName={currentProject} />
           )}
 
           {activeTab === 'settings' && (

@@ -68,6 +68,46 @@ export default function EnhancedPRDEditor({
   const [highlightPosition, setHighlightPosition] = useState<any>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!isMounted) return
+    
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Check if user is typing in an input/textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+        return
+      }
+      
+      // Check for Monaco editor focus
+      if (editorRef.current?.hasTextFocus()) {
+        return
+      }
+      
+      switch(e.key) {
+        case '1':
+          e.preventDefault()
+          setShowOutline(!showOutline)
+          break
+        case '2':
+          e.preventDefault()
+          setShowEditor(!showEditor)
+          break
+        case '3':
+          e.preventDefault()
+          setShowPreview(!showPreview)
+          break
+        case '4':
+          e.preventDefault()
+          setShowLinter(!showLinter)
+          break
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [isMounted, showOutline, showEditor, showPreview, showLinter, setShowOutline, setShowEditor, setShowPreview, setShowLinter])
+  
 
   // Handle outline item click
   const handleOutlineClick = (line: number) => {
@@ -177,13 +217,15 @@ export default function EnhancedPRDEditor({
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Navigation Bar */}
-      <div className="border-b border-gray-200 px-4 py-2 bg-gray-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h3 className="font-semibold text-sm">Editor</h3>
-            
-            {/* Column Toggle Buttons */}
-            <div className="flex items-center gap-1 border-l pl-4">
+      <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h3 className="font-semibold text-sm text-gray-900">Editor</h3>
+          
+          {/* Divider */}
+          <div className="h-5 w-px bg-gray-300" />
+          
+          {/* Column Toggle Buttons */}
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setShowOutline(!showOutline)}
               className={cn(
@@ -192,7 +234,7 @@ export default function EnhancedPRDEditor({
                   ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
                   : "hover:bg-gray-100 text-gray-600"
               )}
-              title="Toggle Outline"
+              title="Outline (1)"
             >
               <FileText className="h-4 w-4" />
             </button>
@@ -205,7 +247,7 @@ export default function EnhancedPRDEditor({
                   ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
                   : "hover:bg-gray-100 text-gray-600"
               )}
-              title="Toggle Editor"
+              title="Editor (2)"
             >
               <SplitSquareHorizontal className="h-4 w-4" />
             </button>
@@ -218,7 +260,7 @@ export default function EnhancedPRDEditor({
                   ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
                   : "hover:bg-gray-100 text-gray-600"
               )}
-              title="Toggle Rich Text Preview"
+              title="Preview (3)"
             >
               <Eye className="h-4 w-4" />
             </button>
@@ -231,15 +273,15 @@ export default function EnhancedPRDEditor({
                   ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
                   : "hover:bg-gray-100 text-gray-600"
               )}
-              title="Toggle PRD Quality Score"
+              title="Linter (4)"
             >
               <CheckCircle className="h-4 w-4" />
             </button>
-            </div>
           </div>
-          
-          {/* Generate Prototype Button */}
-          <div className="flex items-center gap-2">
+        </div>
+        
+        {/* Generate Prototype Button */}
+        <div className="flex items-center gap-2">
             {onGeneratePrototype && (
               <button
                 onClick={handleRegenerate}
@@ -264,7 +306,6 @@ export default function EnhancedPRDEditor({
                 )}
               </button>
             )}
-          </div>
         </div>
       </div>
 
@@ -395,7 +436,7 @@ export default function EnhancedPRDEditor({
               minWidth: 200,
               maxWidth: 600
             } : null
-          ].filter(Boolean)}
+          ].filter(Boolean) as any}
         />
       </div>
 
