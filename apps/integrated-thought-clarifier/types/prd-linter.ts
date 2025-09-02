@@ -9,6 +9,13 @@ export interface ParsedPRD {
   edgeCases?: string[]
 }
 
+export interface AISuggestion {
+  text: string
+  confidence: number
+  explanation: string
+  id: string
+}
+
 export interface LintIssue {
   ruleId: string
   severity: 'error' | 'warning' | 'info' | 'suggestion'
@@ -20,9 +27,11 @@ export interface LintIssue {
   matchedText?: string  // The actual text that triggered the issue
   suggestion?: string
   suggestions?: string[] // Multiple fix options
+  aiSuggestions?: AISuggestion[] // AI-powered suggestions with confidence
   autoFixable?: boolean
   context?: string
   category?: string
+  dismissed?: boolean // Whether user has dismissed this issue
 }
 
 export interface LintReport {
@@ -36,6 +45,7 @@ export interface LintReport {
   }
   passedRules: string[]
   failedRules: string[]
+  isAIProduct?: boolean
 }
 
 export interface PRDLintRule {

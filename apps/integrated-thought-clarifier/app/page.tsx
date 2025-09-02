@@ -153,8 +153,13 @@ export default function Home() {
             title="Development Environment"
           >
             <Layers size={20} />
+            {isGenerating && (
+              <div className="absolute top-1 right-1">
+                <div className="h-2 w-2 bg-purple-600 rounded-full animate-pulse"></div>
+              </div>
+            )}
             <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-              Development Environment
+              Development Environment {isGenerating && '(Generating...)'}
             </span>
           </button>
         </nav>
@@ -291,113 +296,43 @@ export default function Home() {
           )}
 
           {activeTab === 'development' && (
-            <div className="h-full flex flex-col bg-white">
-              {/* Development Environment Header */}
-              <div className="border-b border-gray-200 px-4 py-2 flex items-center justify-between bg-gray-50">
-                <h3 className="font-semibold text-sm">Development Environment</h3>
-                <div className="flex items-center gap-2">
-                  {prototypeCode && (
-                    <button
-                      onClick={async () => {
-                    if (!prdContent.trim()) {
-                      alert('Please enter PRD content first')
-                      return
-                    }
-                    
-                    if (!apiKeys.anthropic) {
-                      alert('Please add your Anthropic API key in Settings')
-                      setActiveTab('settings')
-                      return
-                    }
-                    
-                        if (!prdContent.trim()) {
-                          alert('Please enter PRD content first')
-                          return
-                        }
-                        
-                        if (!apiKeys.anthropic) {
-                          alert('Please add your Anthropic API key in Settings')
-                          setActiveTab('settings')
-                          return
-                        }
-                        
-                        setIsGenerating(true)
-                        try {
-                          const response = await fetch('/api/generate-annotated-prototype', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              prdContent,
-                              apiKey: apiKeys.anthropic,
-                              modelId: apiKeys.selectedModel || 'claude-3-5-sonnet-20241022',
-                              includeAnnotations: true
-                            })
-                          })
-                          
-                          if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`)
-                          }
-                          
-                          const data = await response.json()
-                          
-                          if (data.success && data.code && data.annotationConfig) {
-                            setPrototypeCode(data.code)
-                            setAnnotationConfig(data.annotationConfig)
-                          } else {
-                            throw new Error(data.error || 'Failed to generate annotated prototype')
-                          }
-                        } catch (error) {
-                          console.error('Error generating annotated prototype:', error)
-                          alert(`Error: ${error instanceof Error ? error.message : 'Failed to generate annotated prototype'}`)
-                        } finally {
-                          setIsGenerating(false)
-                        }
-                      }}
-                      disabled={isGenerating || !prdContent.trim()}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                          <span>Regenerating...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4" />
-                          <span>Regenerate</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-              
-              {/* Development Environment Content */}
-              <div className="flex-1 overflow-hidden">
-                {annotationConfig && prototypeCode ? (
-                  <AnnotatedPrototype
-                    code={prototypeCode}
-                    projectName={currentProject}
-                    config={annotationConfig}
-                    isRegenerating={false}
-                    onRegenerate={() => {}}
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center bg-gray-50">
+            <div className="h-full overflow-hidden bg-white">
+              {isGenerating ? (
+                <div className="h-full flex flex-col items-center justify-center">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="relative">
+                      <div className="h-16 w-16 border-4 border-purple-200 rounded-full"></div>
+                      <div className="h-16 w-16 border-4 border-purple-600 rounded-full animate-spin border-t-transparent absolute top-0"></div>
+                    </div>
                     <div className="text-center">
-                      <Layers className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                      <h3 className="text-lg font-semibold mb-2">No Prototype Generated</h3>
-                      <p className="text-gray-600 mb-4">Generate a prototype from your PRD in the Editor tab</p>
-                      <button
-                        onClick={() => setActiveTab('editor')}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        Go to Editor
-                      </button>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Generating Prototype...</h3>
+                      <p className="text-sm text-gray-600">This may take a moment while we create your interactive prototype</p>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : annotationConfig && prototypeCode ? (
+                <AnnotatedPrototype
+                  code={prototypeCode}
+                  projectName={currentProject}
+                  config={annotationConfig}
+                  isRegenerating={false}
+                  onRegenerate={() => {}}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gray-50">
+                  <div className="text-center">
+                    <Layers className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold mb-2">No Prototype Generated</h3>
+                    <p className="text-gray-600 mb-4">Generate a prototype from your PRD in the Editor tab</p>
+                    <button
+                      onClick={() => setActiveTab('editor')}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      Go to Editor
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

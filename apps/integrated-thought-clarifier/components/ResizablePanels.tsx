@@ -20,6 +20,7 @@ interface ResizablePanelsProps {
 
 export default function ResizablePanels({ panels, className, storageKey = 'panel-widths' }: ResizablePanelsProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const [isMounted, setIsMounted] = useState(false)
   const [widths, setWidths] = useLocalStorage<Record<string, number>>(
     storageKey,
     panels.reduce((acc, panel) => ({
@@ -30,6 +31,11 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
   const [isDragging, setIsDragging] = useState<string | null>(null)
   const [startX, setStartX] = useState(0)
   const [startWidths, setStartWidths] = useState<Record<string, number>>({})
+
+  // Set mounted state after hydration
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Initialize widths for new panels
   useEffect(() => {
@@ -74,27 +80,50 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
       const currentWidth = startWidths[panel.id] || panel.defaultWidth || 300
       const nextWidth = startWidths[nextPanel.id] || nextPanel.defaultWidth || 300
       
-      const newCurrentWidth = Math.max(
-        panel.minWidth || 150,
-        Math.min(panel.maxWidth || 800, currentWidth + deltaX)
+      // Get container width to calculate flexible minimum widths
+      const containerWidth = containerRef.current?.clientWidth || 1200
+      
+      // Use panel-specific minWidth or 25% of container (whichever is smaller for flexibility)
+      const panelMinWidth = Math.min(panel.minWidth || 200, containerWidth * 0.25)
+      const panelMaxWidth = Math.min(panel.maxWidth || containerWidth * 0.8, containerWidth * 0.8)
+      
+      const nextPanelMinWidth = Math.min(nextPanel.minWidth || 200, containerWidth * 0.25)
+      const nextPanelMaxWidth = Math.min(nextPanel.maxWidth || containerWidth * 0.8, containerWidth * 0.8)
+      
+      // Calculate new widths with constraints
+      let newCurrentWidth = Math.max(
+        panelMinWidth,
+        Math.min(panelMaxWidth, currentWidth + deltaX)
       )
       
-      const newNextWidth = Math.max(
-        nextPanel.minWidth || 150,
-        Math.min(nextPanel.maxWidth || 800, nextWidth - deltaX)
+      let newNextWidth = Math.max(
+        nextPanelMinWidth,
+        Math.min(nextPanelMaxWidth, nextWidth - deltaX)
       )
       
-      // Only update if both panels can accommodate the change
+      // Ensure total width is preserved - adjust if constraints changed the total
       const totalBefore = currentWidth + nextWidth
       const totalAfter = newCurrentWidth + newNextWidth
+      const diff = totalBefore - totalAfter
       
-      if (Math.abs(totalBefore - totalAfter) < 1) {
-        setWidths(prev => ({
-          ...prev,
-          [panel.id]: newCurrentWidth,
-          [nextPanel.id]: newNextWidth
-        }))
+      if (Math.abs(diff) > 0.1) {
+        // Distribute the difference proportionally
+        const currentRatio = newCurrentWidth / (newCurrentWidth + newNextWidth)
+        const adjustment = diff * currentRatio
+        
+        newCurrentWidth = Math.max(panelMinWidth, Math.min(panelMaxWidth, newCurrentWidth + adjustment))
+        newNextWidth = totalBefore - newCurrentWidth
+        
+        // Final constraint check for next panel
+        newNextWidth = Math.max(nextPanelMinWidth, Math.min(nextPanelMaxWidth, newNextWidth))
+        newCurrentWidth = totalBefore - newNextWidth
       }
+      
+      setWidths(prev => ({
+        ...prev,
+        [panel.id]: newCurrentWidth,
+        [nextPanel.id]: newNextWidth
+      }))
     }
 
     const handleMouseUp = () => {
@@ -124,7 +153,8 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
     <div ref={containerRef} className={cn("flex h-full", className)}>
       {visiblePanels.map((panel, index) => {
         const isLast = index === visiblePanels.length - 1
-        const width = widths[panel.id] || panel.defaultWidth || 300
+        // Use default width during SSR to prevent hydration mismatch
+        const width = isMounted ? (widths[panel.id] || panel.defaultWidth || 300) : (panel.defaultWidth || 300)
         
         return (
           <div

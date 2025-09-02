@@ -26,12 +26,7 @@ export default function MarkdownPreview({ content, className }: MarkdownPreviewP
   }
 
   return (
-    <div className={cn("h-full overflow-y-auto bg-white", className)}>
-      <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Rich Text Preview</span>
-        </div>
-      </div>
+    <div className={cn("h-full overflow-y-auto", className)}>
       <div className="prose prose-sm max-w-none p-6">
         <ReactMarkdown 
           remarkPlugins={[remarkGfm]}

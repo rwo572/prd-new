@@ -14,8 +14,10 @@ import {
 import DocumentOutline from './DocumentOutline'
 import PRDLinter from './PRDLinter'
 import ResizablePanels from './ResizablePanels'
+import MarkdownToolbar from './MarkdownToolbar'
 import { cn } from '@/lib/utils'
 import { LintIssue } from '@/types/prd-linter'
+import { applyMarkdownAction } from '@/lib/markdown-editor-actions'
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -45,11 +47,20 @@ export default function EnhancedPRDEditor({
   selectedModel,
   onGeneratePrototype
 }: EnhancedPRDEditorProps) {
+  // Client-side mounting check
+  const [isMounted, setIsMounted] = useState(false)
+  
   // Column visibility states with persistence
   const [showOutline, setShowOutline] = useLocalStorage('editor-show-outline', true)
   const [showEditor, setShowEditor] = useLocalStorage('editor-show-editor', true)
   const [showPreview, setShowPreview] = useLocalStorage('editor-show-preview', false)
   const [showLinter, setShowLinter] = useLocalStorage('editor-show-linter', false)
+  
+  // Use default values during SSR to prevent hydration mismatch
+  const safeShowOutline = isMounted ? showOutline : true
+  const safeShowEditor = isMounted ? showEditor : true
+  const safeShowPreview = isMounted ? showPreview : false
+  const safeShowLinter = isMounted ? showLinter : false
   
   // Editor state
   const editorRef = useRef<any>(null)
@@ -93,6 +104,18 @@ export default function EnhancedPRDEditor({
     setTimeout(() => setHighlightPosition(null), 100)
   }
 
+  // Handle toolbar actions
+  const handleToolbarAction = (action: string, value?: any) => {
+    if (editorRef.current) {
+      applyMarkdownAction(editorRef.current, action, value)
+    }
+  }
+
+  // Set mounted state after hydration
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+  
   // Handle highlighting when position changes
   useEffect(() => {
     if (highlightPosition && editorRef.current && monacoRef.current) {
@@ -149,7 +172,7 @@ export default function EnhancedPRDEditor({
   }
 
   // Calculate column count for layout
-  const columnCount = [showOutline, showEditor, showPreview, showLinter].filter(Boolean).length
+  const columnCount = [safeShowOutline, safeShowEditor, safeShowPreview, safeShowLinter].filter(Boolean).length
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -165,7 +188,7 @@ export default function EnhancedPRDEditor({
               onClick={() => setShowOutline(!showOutline)}
               className={cn(
                 "p-1.5 rounded transition-colors",
-                showOutline 
+                safeShowOutline 
                   ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
                   : "hover:bg-gray-100 text-gray-600"
               )}
@@ -178,7 +201,7 @@ export default function EnhancedPRDEditor({
               onClick={() => setShowEditor(!showEditor)}
               className={cn(
                 "p-1.5 rounded transition-colors",
-                showEditor 
+                safeShowEditor 
                   ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
                   : "hover:bg-gray-100 text-gray-600"
               )}
@@ -191,7 +214,7 @@ export default function EnhancedPRDEditor({
               onClick={() => setShowPreview(!showPreview)}
               className={cn(
                 "p-1.5 rounded transition-colors",
-                showPreview 
+                safeShowPreview 
                   ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
                   : "hover:bg-gray-100 text-gray-600"
               )}
@@ -204,7 +227,7 @@ export default function EnhancedPRDEditor({
               onClick={() => setShowLinter(!showLinter)}
               className={cn(
                 "p-1.5 rounded transition-colors",
-                showLinter 
+                safeShowLinter 
                   ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
                   : "hover:bg-gray-100 text-gray-600"
               )}
@@ -220,10 +243,10 @@ export default function EnhancedPRDEditor({
             {onGeneratePrototype && (
               <button
                 onClick={handleRegenerate}
-                disabled={isGenerating || !content.trim()}
+                disabled={isMounted ? (isGenerating || !content.trim()) : false}
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                  isGenerating || !content.trim()
+                  (isMounted && (isGenerating || !content.trim()))
                     ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                     : "bg-purple-600 text-white hover:bg-purple-700"
                 )}
@@ -250,7 +273,7 @@ export default function EnhancedPRDEditor({
         <ResizablePanels
           storageKey="editor-panel-widths"
           panels={[
-            showOutline ? {
+            safeShowOutline ? {
               id: 'outline',
               content: (
                 <div className="h-full border-r border-gray-200 bg-gray-50">
@@ -261,13 +284,18 @@ export default function EnhancedPRDEditor({
                 </div>
               ),
               defaultWidth: 260,
-              minWidth: 200,
-              maxWidth: 400
+              minWidth: 150,
+              maxWidth: 600
             } : null,
-            showEditor ? {
+            safeShowEditor ? {
               id: 'editor',
               content: (
-                <MonacoEditor
+                <div className="h-full flex flex-col">
+                  <MarkdownToolbar 
+                    onAction={handleToolbarAction}
+                  />
+                  <div className="flex-1">
+                    <MonacoEditor
                   height="100%"
                   defaultLanguage="markdown"
                   value={content}
@@ -282,6 +310,28 @@ export default function EnhancedPRDEditor({
                       inherit: true,
                       rules: [],
                       colors: {}
+                    })
+                    
+                    // Add keyboard shortcuts
+                    editor.addAction({
+                      id: 'markdown-bold',
+                      label: 'Bold',
+                      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB],
+                      run: () => applyMarkdownAction(editor, 'bold')
+                    })
+                    
+                    editor.addAction({
+                      id: 'markdown-italic',
+                      label: 'Italic',
+                      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
+                      run: () => applyMarkdownAction(editor, 'italic')
+                    })
+                    
+                    editor.addAction({
+                      id: 'markdown-link',
+                      label: 'Insert Link',
+                      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+                      run: () => applyMarkdownAction(editor, 'link')
                     })
                   }}
                   options={{
@@ -301,40 +351,49 @@ export default function EnhancedPRDEditor({
                     lineNumbersMinChars: 4,
                     padding: { top: 16, bottom: 16 }
                   }}
-                />
-              ),
-              defaultWidth: 500,
-              minWidth: 300,
-              maxWidth: 800
-            } : null,
-            showPreview ? {
-              id: 'preview',
-              content: (
-                <div className="h-full border-l border-gray-200">
-                  <MarkdownPreview content={content} />
-                </div>
-              ),
-              defaultWidth: 450,
-              minWidth: 300,
-              maxWidth: 700
-            } : null,
-            showLinter ? {
-              id: 'linter',
-              content: (
-                <div className="h-full border-l border-gray-200 bg-gray-50 overflow-y-auto">
-                  <div className="p-4">
-                    <PRDLinter
-                      content={content}
-                      onAutoFix={(fixedContent) => onChange(fixedContent)}
-                      onIssueClick={handleIssueClick}
-                      onSuggestionApply={handleSuggestionApply}
                     />
                   </div>
                 </div>
               ),
+              defaultWidth: 500,
+              minWidth: 200,
+              maxWidth: 1000
+            } : null,
+            safeShowPreview ? {
+              id: 'preview',
+              content: (
+                <div className="h-full flex flex-col border-l border-gray-200">
+                  <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Rich Text Preview</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    <MarkdownPreview content={content} />
+                  </div>
+                </div>
+              ),
+              defaultWidth: 450,
+              minWidth: 200,
+              maxWidth: 800
+            } : null,
+            safeShowLinter ? {
+              id: 'linter',
+              content: (
+                <div className="h-full border-l border-gray-200">
+                  <PRDLinter
+                    content={content}
+                    onAutoFix={(fixedContent) => onChange(fixedContent)}
+                    onIssueClick={handleIssueClick}
+                    onSuggestionApply={handleSuggestionApply}
+                    anthropicApiKey={anthropicApiKey}
+                    selectedModel={selectedModel}
+                  />
+                </div>
+              ),
               defaultWidth: 320,
-              minWidth: 280,
-              maxWidth: 500
+              minWidth: 200,
+              maxWidth: 600
             } : null
           ].filter(Boolean)}
         />

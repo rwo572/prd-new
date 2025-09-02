@@ -227,6 +227,12 @@ IF user_input.ready_for_prototype:
 - **Interactive issue resolution with click-to-navigate**
 - **Contextual suggestions with one-click fixes**
 - **Visual annotation layers on prototypes**
+- **Enhanced multi-column PRD editor with toggleable panels**
+- **Markdown toolbar for rich text editing**
+- **Resizable panels with flexible width constraints (25% minimum)**
+- **AI-powered suggestion generation with confidence scoring**
+- **Minimalist UI with progressive disclosure**
+- **Persistent layout preferences across sessions**
 
 ### 5.2 Out of Scope (MVP)
 - Full-stack application deployment
@@ -294,15 +300,20 @@ IF user_input.ready_for_prototype:
 - Successfully create GitHub repo
 - Export valid markdown
 
-### 7.2 Phase 2: Direct Prototype Generation (Weeks 7-10)
+### 7.2 Phase 2: Enhanced Editor & Direct Prototype Generation (Weeks 7-10)
 **Goal**: Generate working prototypes directly from PRDs
 
 **Features**:
+- Enhanced multi-column PRD editor with toggleable panels
+- Markdown toolbar with formatting buttons and shortcuts
+- Resizable panels with persistent layout preferences
 - One-click prototype generation using Claude Sonnet
 - Three-stage visual generation (wireframe → styled → interactive)
 - Live preview with Monaco editor integration
 - Natural language refinement commands
 - Export to React/TypeScript or HTML/CSS
+- AI-powered suggestion generation for lint issues
+- Minimalist UI with progressive disclosure
 
 **Success Criteria**:
 - Generate working prototype in <10 seconds
@@ -566,18 +577,19 @@ The PRD Quality Linter provides real-time feedback on PRD completeness, clarity,
 ### 9.3 Enhanced Linter UI/UX
 
 #### Real-time Feedback Panel
-- **Position**: Right sidebar panel in PRD editor view (320px width)
+- **Position**: Right sidebar panel in PRD editor view (resizable, 25% minimum width)
 - **Updates**: 500ms debounce after typing stops
-- **Visual Design**: Card-based with collapsible categories
-- **Interactivity**: Click to jump, hover for suggestions
+- **Visual Design**: Minimalist design with subtle dividers and no excessive borders
+- **Interactivity**: Click to jump to issues, expandable AI-generated suggestions
 
 #### Quality Score Display
-- **Clickable Header**: Click score to expand/collapse all categories
+- **Compact Header**: Single-line stats display with score and issue counts
 - **Score Range**: 0-100% with color coding
   - 80-100%: Green (Production Ready)
   - 60-79%: Yellow (Needs Improvement)
   - 40-59%: Orange (Major Gaps)
   - 0-39%: Red (Critical Issues)
+- **Bulk Actions**: Apply All and Dismiss All buttons for efficient issue management
 - **AI Readiness Badge**: Special indicator for AI products
   - Shows percentage of AI requirements met
   - Critical AI issues count displayed
@@ -600,22 +612,19 @@ The PRD Quality Linter provides real-time feedback on PRD completeness, clarity,
 - **Auto-fade**: Highlight disappears after 3 seconds
 
 #### Issue Presentation
-- **Enhanced Format**:
-  ```
-  [Icon] Issue Message "matched text"
-  Line X, Column Y
-  💡 Primary suggestion
-  → Option 1
-  → Option 2  
-  → Option 3
-  [Click to apply]
-  ```
-- **Category Icons**:
-  - 📄 Completeness/Clarity
-  - 💻 Technical
-  - 👥 UX
-  - 🛡️ Security
-  - ✨ AI-Specific
+- **Minimalist Cards**: Clean, scannable cards with essential information
+- **Smart Actions**: 
+  - Apply button for instant fixes
+  - Dismiss option for false positives
+  - Refresh icon for regenerating AI suggestions
+- **AI Suggestions**: 
+  - Expandable section with up to 3 AI-generated alternatives
+  - Confidence scores displayed as subtle progress bars
+  - One-click application with automatic editor update
+- **Visual Hierarchy**: 
+  - Severity indicated by subtle color coding
+  - Matched text displayed inline with issue message
+  - Line/column information displayed compactly
 
 ### 9.4 Enhanced Auto-Fix Templates
 
@@ -685,7 +694,16 @@ interface LintIssue {
   endOffset?: number    
   matchedText?: string  // Actual problematic text
   suggestions?: string[] // Multiple fix options
+  aiSuggestions?: AISuggestion[] // AI-generated alternatives
   autoFixable?: boolean
+  dismissed?: boolean   // User dismissal tracking
+}
+
+interface AISuggestion {
+  text: string
+  confidence: number    // 0-1 confidence score
+  explanation: string   // Why this suggestion works
+  id: string           // Unique identifier
 }
 ```
 
@@ -757,6 +775,9 @@ interface LintIssue {
 - AI Response Start: <1 second
 - Markdown Rendering: Real-time (<100ms)
 - GitHub Operations: <5 seconds
+- Panel Resizing: Smooth 60fps drag interactions
+- AI Suggestion Generation: <3 seconds per issue
+- Editor Toolbar Actions: Instant (<50ms)
 
 ### 10.2 Security Requirements
 - SOC 2 Type II compliance ready
@@ -769,6 +790,8 @@ interface LintIssue {
 - Support 10,000 concurrent users
 - Handle PRDs up to 50,000 tokens
 - Manage repos up to 100MB
+- Maintain responsive UI with 100+ lint issues
+- Handle multiple AI suggestion requests in parallel
 
 ### 10.4 Browser Support
 - Chrome 90+
