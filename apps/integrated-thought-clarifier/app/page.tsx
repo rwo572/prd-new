@@ -216,7 +216,7 @@ export default function Home() {
         body: JSON.stringify({
           prdContent,
           apiKey: apiKeys.anthropic,
-          modelId: apiKeys.selectedModel || 'claude-3-5-sonnet-20241022'
+          modelId: selectedModel || 'claude-3-5-sonnet-20241022'
         })
       })
       
@@ -345,29 +345,7 @@ export default function Home() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <input
-                type="text"
-                value={currentProject}
-                onChange={(e) => setCurrentProject(e.target.value)}
-                className="text-lg font-semibold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-primary-500 focus:outline-none transition-colors"
-                placeholder="Project Name"
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              {demoMode && (
-                <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-                  Demo Mode
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Content Area */}
+        {/* Content Area - No Header */}
         <div className="flex-1 overflow-hidden">
           {activeTab === 'editor' && (
             <EnhancedPRDEditor

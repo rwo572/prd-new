@@ -1,16 +1,10 @@
-import { LintIssue, ParsedPRD } from '@/types/prd-linter'
+import { LintIssue, ParsedPRD, AISuggestion } from '@/types/prd-linter'
 
 interface SuggestionContext {
   content: string
   issue: LintIssue
   surroundingText: string
   isAIProduct: boolean
-}
-
-interface AISuggestion {
-  text: string
-  confidence: number
-  explanation: string
 }
 
 export class AISuggestionService {
@@ -135,7 +129,8 @@ IMPORTANT: Respond with ONLY valid JSON, no markdown code blocks or extra format
         throw new Error('Invalid response format')
       }
 
-      return parsed.suggestions.map((s: any) => ({
+      return parsed.suggestions.map((s: any, index: number) => ({
+        id: `ai-suggestion-${Date.now()}-${index}`,
         text: s.text || '',
         confidence: Math.max(0, Math.min(1, s.confidence || 0.5)),
         explanation: s.explanation || 'AI-generated suggestion'
@@ -152,6 +147,7 @@ IMPORTANT: Respond with ONLY valid JSON, no markdown code blocks or extra format
 
     if (issue.suggestion) {
       suggestions.push({
+        id: `fallback-${Date.now()}-0`,
         text: issue.suggestion,
         confidence: 0.7,
         explanation: 'Rule-based suggestion'
@@ -161,6 +157,7 @@ IMPORTANT: Respond with ONLY valid JSON, no markdown code blocks or extra format
     if (issue.suggestions) {
       issue.suggestions.forEach((text, index) => {
         suggestions.push({
+          id: `fallback-${Date.now()}-${index + 1}`,
           text,
           confidence: 0.6 - (index * 0.1),
           explanation: 'Rule-based alternative'

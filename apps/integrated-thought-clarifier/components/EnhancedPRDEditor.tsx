@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import dynamic from 'next/dynamic'
 import { 
@@ -13,7 +13,7 @@ import {
   MessageSquare
 } from 'lucide-react'
 import DocumentOutline from './DocumentOutline'
-import PRDLinter from './PRDLinter'
+import Linter from './Linter'
 import ChatPanel from './ChatPanel'
 import ResizablePanels from './ResizablePanels'
 import MarkdownToolbar from './MarkdownToolbar'
@@ -320,6 +320,267 @@ export default function EnhancedPRDEditor({
 
   // Calculate column count for layout
   const columnCount = [safeShowOutline, safeShowEditor, safeShowPreview, safeShowLinter].filter(Boolean).length
+  
+  // Memoize panels array to prevent unnecessary re-renders
+  const panels = useMemo(() => [
+    safeShowOutline ? {
+      id: 'outline',
+      content: (
+        <div className="h-full border-r border-slate-200 bg-gradient-to-b from-slate-50 to-white">
+          <DocumentOutline
+            content={content}
+            onItemClick={handleOutlineClick}
+          />
+        </div>
+      ),
+      defaultWidth: 260,
+      minWidth: 150,
+      maxWidth: 600
+    } : null,
+    safeShowEditor ? {
+      id: 'editor',
+      content: (
+        <div className="h-full flex flex-col">
+          <MarkdownToolbar 
+            onAction={handleToolbarAction}
+          />
+          <div className="flex-1">
+            <MonacoEditor
+              height="100%"
+              defaultLanguage="markdown"
+              value={content}
+              onChange={(value) => onChange(value || '')}
+              theme="vs"
+              onMount={(editor, monaco) => {
+                editorRef.current = editor
+                monacoRef.current = monaco
+                
+                monaco.editor.defineTheme('custom', {
+                  base: 'vs',
+                  inherit: true,
+                  rules: [],
+                  colors: {}
+                })
+                
+                
+                // Add keyboard shortcuts
+                editor.addAction({
+                  id: 'markdown-bold',
+                  label: 'Bold',
+                  keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB],
+                  run: () => applyMarkdownAction(editor, 'bold')
+                })
+                
+                editor.addAction({
+                  id: 'markdown-italic',
+                  label: 'Italic',
+                  keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
+                  run: () => applyMarkdownAction(editor, 'italic')
+                })
+                
+                editor.addAction({
+                  id: 'markdown-link',
+                  label: 'Insert Link',
+                  keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+                  run: () => applyMarkdownAction(editor, 'link')
+                })
+                
+                // Track selection changes
+                editor.onDidChangeCursorSelection((e) => {
+                  const selection = editor.getSelection()
+                  if (selection && !selection.isEmpty()) {
+                    const model = editor.getModel()
+                    if (model) {
+                      const selectedText = model.getValueInRange(selection)
+                      const startOffset = model.getOffsetAt(selection.getStartPosition())
+                      const endOffset = model.getOffsetAt(selection.getEndPosition())
+                      setSelectedText(selectedText)
+                      setSelectionRange({ start: startOffset, end: endOffset })
+                    }
+                  } else {
+                    setSelectedText('')
+                    setSelectionRange(undefined)
+                  }
+                })
+              }}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 14,
+                lineNumbers: 'on',
+                wordWrap: 'on',
+                wrappingIndent: 'indent',
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                tabSize: 2,
+                insertSpaces: true,
+                folding: true,
+                foldingStrategy: 'indentation',
+                renderWhitespace: 'none',
+                lineDecorationsWidth: 0,
+                lineNumbersMinChars: 4,
+                padding: { top: 16, bottom: 16 }
+              }}
+            />
+          </div>
+        </div>
+      ),
+      defaultWidth: 500,
+      minWidth: 200,
+      maxWidth: 1000
+    } : null,
+    safeShowPreview ? {
+      id: 'preview',
+      content: (
+        <div className="h-full flex flex-col border-l border-gray-200">
+          <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Rich Text Preview</span>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <MarkdownPreview 
+              content={content} 
+              onTextSelect={(text) => {
+                setSelectedText(text)
+                // Note: We can't set selectionRange here as it refers to editor positions
+                // For preview selections, we'll just have the text without position info
+                setSelectionRange(undefined)
+              }}
+            />
+          </div>
+        </div>
+      ),
+      defaultWidth: 450,
+      minWidth: 200,
+      maxWidth: 800
+    } : null,
+    safeShowLinter ? {
+      id: 'linter',
+      content: (
+        <div className="h-full border-l border-slate-200">
+          <Linter
+            content={content}
+            onAutoFix={(fixedContent) => onChange(fixedContent)}
+            onIssueClick={handleIssueClick}
+            onSuggestionApply={handleSuggestionApply}
+            anthropicApiKey={anthropicApiKey}
+            selectedModel={selectedModel}
+          />
+        </div>
+      ),
+      defaultWidth: 320,
+      minWidth: 200,
+      maxWidth: 600
+    } : null,
+    safeShowChat ? {
+      id: 'chat',
+      content: (
+        <div className="h-full border-l border-slate-200">
+          <ChatPanel
+            messages={messages}
+            onSendMessage={onSendMessage}
+            isGenerating={isGenerating}
+            editorContent={content}
+            selectedText={selectedText}
+            selectionRange={selectionRange}
+            onReplaceText={handleReplaceText}
+            onAcceptContent={(newContent, context) => {
+              if (context?.type === 'selection' && context.selectionStart !== undefined && context.selectionEnd !== undefined) {
+                // Replace the selected text with the new content
+                const before = content.substring(0, context.selectionStart)
+                const after = content.substring(context.selectionEnd)
+                const updatedContent = before + newContent + after
+                onChange(updatedContent)
+                
+                // Highlight the inserted text
+                setHighlightPosition({
+                  line: 0,
+                  column: 0,
+                  startOffset: context.selectionStart,
+                  endOffset: context.selectionStart + newContent.length
+                })
+                
+                // Clear highlight after 5 seconds
+                setTimeout(() => setHighlightPosition(null), 5000)
+                
+                // Show the editor if it's hidden
+                if (!showEditor) {
+                  setShowEditor(true)
+                }
+                
+                // Focus and scroll to the changed text
+                setTimeout(() => {
+                  if (editorRef.current && monacoRef.current) {
+                    const model = editorRef.current.getModel()
+                    if (model) {
+                      const position = model.getPositionAt(context.selectionStart + newContent.length)
+                      editorRef.current.setPosition(position)
+                      editorRef.current.revealLineInCenter(position.lineNumber)
+                      editorRef.current.focus()
+                    }
+                  }
+                }, 100)
+              } else {
+                // Full document replacement or append
+                if (content.trim()) {
+                  // If there's existing content, append with a separator
+                  onChange(content + '\n\n---\n\n' + newContent)
+                } else {
+                  // If document is empty, just set the content
+                  onChange(newContent)
+                }
+                
+                // Show the editor to see the changes
+                if (!showEditor) {
+                  setShowEditor(true)
+                }
+              }
+            }}
+            onRegenerate={onGeneratePrototype}
+            onClearChat={onClearMessages}
+            streamingThought={streamingThought}
+            streamingContent={streamingContent}
+            apiKeys={apiKeys}
+            error={error}
+          />
+        </div>
+      ),
+      defaultWidth: 350,
+      minWidth: 250,
+      maxWidth: 800
+    } : null
+  ].filter(Boolean), [
+    safeShowOutline,
+    safeShowEditor,
+    safeShowPreview,
+    safeShowLinter,
+    safeShowChat,
+    content,
+    handleOutlineClick,
+    handleToolbarAction,
+    onChange,
+    handleIssueClick,
+    handleSuggestionApply,
+    anthropicApiKey,
+    selectedModel,
+    messages,
+    onSendMessage,
+    isGenerating,
+    selectedText,
+    selectionRange,
+    handleReplaceText,
+    showEditor,
+    setShowEditor,
+    onGeneratePrototype,
+    onClearMessages,
+    streamingThought,
+    streamingContent,
+    apiKeys,
+    error,
+    setSelectedText,
+    setSelectionRange,
+    setHighlightPosition
+  ])
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -439,269 +700,7 @@ export default function EnhancedPRDEditor({
       <div className="flex-1 overflow-hidden">
         <ResizablePanels
           storageKey="editor-panel-widths"
-          panels={[
-            safeShowOutline ? {
-              id: 'outline',
-              content: (
-                <div className="h-full border-r border-slate-200 bg-gradient-to-b from-slate-50 to-white">
-                  <DocumentOutline
-                    content={content}
-                    onItemClick={handleOutlineClick}
-                  />
-                </div>
-              ),
-              defaultWidth: 260,
-              minWidth: 150,
-              maxWidth: 600
-            } : null,
-            safeShowEditor ? {
-              id: 'editor',
-              content: (
-                <div className="h-full flex flex-col">
-                  <MarkdownToolbar 
-                    onAction={handleToolbarAction}
-                  />
-                  <div className="flex-1">
-                    <MonacoEditor
-                  height="100%"
-                  defaultLanguage="markdown"
-                  value={content}
-                  onChange={(value) => onChange(value || '')}
-                  theme="vs"
-                  onMount={(editor, monaco) => {
-                    editorRef.current = editor
-                    monacoRef.current = monaco
-                    
-                    monaco.editor.defineTheme('custom', {
-                      base: 'vs',
-                      inherit: true,
-                      rules: [],
-                      colors: {}
-                    })
-                    
-                    // Add keyboard shortcuts
-                    editor.addAction({
-                      id: 'markdown-bold',
-                      label: 'Bold',
-                      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB],
-                      run: () => applyMarkdownAction(editor, 'bold')
-                    })
-                    
-                    editor.addAction({
-                      id: 'markdown-italic',
-                      label: 'Italic',
-                      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
-                      run: () => applyMarkdownAction(editor, 'italic')
-                    })
-                    
-                    editor.addAction({
-                      id: 'markdown-link',
-                      label: 'Insert Link',
-                      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
-                      run: () => applyMarkdownAction(editor, 'link')
-                    })
-                    
-                    // Track selection changes
-                    editor.onDidChangeCursorSelection((e) => {
-                      const selection = editor.getSelection()
-                      if (selection && !selection.isEmpty()) {
-                        const model = editor.getModel()
-                        if (model) {
-                          const selectedText = model.getValueInRange(selection)
-                          const startOffset = model.getOffsetAt(selection.getStartPosition())
-                          const endOffset = model.getOffsetAt(selection.getEndPosition())
-                          setSelectedText(selectedText)
-                          setSelectionRange({ start: startOffset, end: endOffset })
-                        }
-                      } else {
-                        setSelectedText('')
-                        setSelectionRange(undefined)
-                      }
-                    })
-                  }}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    lineNumbers: 'on',
-                    wordWrap: 'on',
-                    wrappingIndent: 'indent',
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    tabSize: 2,
-                    insertSpaces: true,
-                    folding: true,
-                    foldingStrategy: 'indentation',
-                    renderWhitespace: 'none',
-                    lineDecorationsWidth: 0,
-                    lineNumbersMinChars: 4,
-                    padding: { top: 16, bottom: 16 }
-                  }}
-                    />
-                  </div>
-                </div>
-              ),
-              defaultWidth: 500,
-              minWidth: 200,
-              maxWidth: 1000
-            } : null,
-            safeShowPreview ? {
-              id: 'preview',
-              content: (
-                <div className="h-full flex flex-col border-l border-gray-200">
-                  <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Rich Text Preview</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 overflow-y-auto overflow-x-hidden">
-                    <MarkdownPreview 
-                      content={content} 
-                      onTextSelect={(text) => {
-                        setSelectedText(text)
-                        // Note: We can't set selectionRange here as it refers to editor positions
-                        // For preview selections, we'll just have the text without position info
-                        setSelectionRange(undefined)
-                      }}
-                    />
-                  </div>
-                </div>
-              ),
-              defaultWidth: 450,
-              minWidth: 200,
-              maxWidth: 800
-            } : null,
-            safeShowLinter ? {
-              id: 'linter',
-              content: (
-                <div className="h-full border-l border-slate-200">
-                  <PRDLinter
-                    content={content}
-                    onAutoFix={(fixedContent) => onChange(fixedContent)}
-                    onIssueClick={handleIssueClick}
-                    onSuggestionApply={handleSuggestionApply}
-                    anthropicApiKey={anthropicApiKey}
-                    selectedModel={selectedModel}
-                  />
-                </div>
-              ),
-              defaultWidth: 320,
-              minWidth: 200,
-              maxWidth: 600
-            } : null,
-            safeShowChat ? {
-              id: 'chat',
-              content: (
-                <div className="h-full border-l border-slate-200">
-                  <ChatPanel
-                    messages={messages}
-                    onSendMessage={onSendMessage}
-                    isGenerating={isGenerating}
-                    editorContent={content}
-                    selectedText={selectedText}
-                    selectionRange={selectionRange}
-                    onReplaceText={handleReplaceText}
-                    onAcceptContent={(newContent, context) => {
-                      if (context?.type === 'selection' && context.selectionStart !== undefined && context.selectionEnd !== undefined) {
-                        // Replace the selected text with the new content
-                        const before = content.substring(0, context.selectionStart)
-                        const after = content.substring(context.selectionEnd)
-                        const updatedContent = before + newContent + after
-                        onChange(updatedContent)
-                        
-                        // Highlight the inserted text
-                        setHighlightPosition({
-                          line: 0,
-                          column: 0,
-                          startOffset: context.selectionStart,
-                          endOffset: context.selectionStart + newContent.length
-                        })
-                        
-                        // Clear highlight after 5 seconds
-                        setTimeout(() => setHighlightPosition(null), 5000)
-                        
-                        // Show the editor if it's hidden
-                        if (!showEditor) {
-                          setShowEditor(true)
-                        }
-                        
-                        // Focus and scroll to the changed text
-                        setTimeout(() => {
-                          if (editorRef.current && monacoRef.current) {
-                            const model = editorRef.current.getModel()
-                            if (model) {
-                              const position = model.getPositionAt(context.selectionStart + newContent.length)
-                              editorRef.current.setPosition(position)
-                              editorRef.current.revealLineInCenter(position.lineNumber)
-                              editorRef.current.focus()
-                            }
-                          }
-                        }, 100)
-                      } else {
-                        // Full document replacement or append
-                        if (content.trim()) {
-                          // If there's existing content, append with a separator
-                          const insertPosition = content.length
-                          const separator = '\n\n## AI Generated Content\n\n'
-                          const updatedContent = content + separator + newContent
-                          onChange(updatedContent)
-                          
-                          // Highlight the inserted text
-                          setHighlightPosition({
-                            line: 0,
-                            column: 0,
-                            startOffset: insertPosition + separator.length,
-                            endOffset: insertPosition + separator.length + newContent.length
-                          })
-                          
-                          // Clear highlight after 5 seconds
-                          setTimeout(() => setHighlightPosition(null), 5000)
-                          
-                          // Show the editor and scroll to the new content
-                          if (!showEditor) {
-                            setShowEditor(true)
-                          }
-                          
-                          setTimeout(() => {
-                            if (editorRef.current && monacoRef.current) {
-                              const model = editorRef.current.getModel()
-                              if (model) {
-                                const position = model.getPositionAt(insertPosition + separator.length)
-                                editorRef.current.setPosition(position)
-                                editorRef.current.revealLineInCenter(position.lineNumber)
-                                editorRef.current.focus()
-                              }
-                            }
-                          }, 100)
-                        } else {
-                          // If editor is empty, just set the content
-                          onChange(newContent)
-                          
-                          // Highlight all the new content
-                          setHighlightPosition({
-                            line: 0,
-                            column: 0,
-                            startOffset: 0,
-                            endOffset: newContent.length
-                          })
-                          
-                          // Clear highlight after 5 seconds
-                          setTimeout(() => setHighlightPosition(null), 5000)
-                        }
-                      }
-                    }}
-                    streamingThought={streamingThought}
-                    streamingContent={streamingContent}
-                    apiKeys={apiKeys}
-                    onClearChat={onClearMessages}
-                    error={error}
-                  />
-                </div>
-              ),
-              defaultWidth: 400,
-              minWidth: 250,
-              maxWidth: 800
-            } : null
-          ].filter(Boolean) as any}
+          panels={panels as any}
         />
       </div>
 

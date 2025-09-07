@@ -543,7 +543,7 @@ The PRD Quality Linter provides real-time feedback on PRD completeness, clarity,
 
 #### 9.2.2 AI-Native Product Checks (20+ Rules)
 ##### Model & Architecture
-- **AI Model Specification** (Error): Must specify which LLM (GPT-4, Claude, etc.)
+- **AI Model Specification** (Error): Must specify which LLM (GPT-4, Claude, etc.) for which action
 - **Fallback Strategy** (Warning): Graceful degradation when AI unavailable
 - **Context Window Management** (Info): Token limits and conversation handling
 - **Prompt Templates** (Warning): Example prompts and system messages required

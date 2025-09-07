@@ -52,7 +52,7 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
     if (hasChanges) {
       setWidths(newWidths)
     }
-  }, [panels.map(p => p?.id).join(',')]) // Only re-run when panel IDs change
+  }, [panels.map(p => p?.id).join(','), setWidths]) // Only re-run when panel IDs change
 
   const handleMouseDown = (e: React.MouseEvent, panelId: string) => {
     e.preventDefault()
@@ -70,8 +70,8 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
 
       const deltaX = e.clientX - startX
       
-      // Work with visible panels only
-      const visiblePanels = panels.filter(p => p && p.content !== null)
+      // Work with visible panels only - check by ID, not content
+      const visiblePanels = panels.filter(p => p && p.id)
       const panelIndex = visiblePanels.findIndex(p => p.id === isDragging)
       
       if (panelIndex === -1) return
@@ -191,10 +191,10 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
-  }, [isDragging, startX, startWidths, panels])
+  }, [isDragging, startX, startWidths, panels.map(p => p?.id).join(','), setWidths])
 
   // Filter out null panels but keep track of all panel IDs for consistent ordering
-  const visiblePanels = panels.filter(panel => panel && panel.content !== null)
+  const visiblePanels = panels.filter(panel => panel && panel.id && panel.content !== null)
 
   if (visiblePanels.length === 0) {
     return null

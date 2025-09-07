@@ -27,7 +27,8 @@ import {
   ArrowRight,
   Check,
   RotateCcw,
-  MessageCircle
+  MessageCircle,
+  Undo2
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -82,6 +83,9 @@ export default function ChatPanel({
   const [lastAssistantMessage, setLastAssistantMessage] = useState<Message | null>(null)
   const [lastUserPrompt, setLastUserPrompt] = useState<string>('')
   const [lastContext, setLastContext] = useState<{ type: 'full' | 'selection', content: string, selectionStart?: number, selectionEnd?: number } | undefined>()
+  const [actionStates, setActionStates] = useState<Record<string, 'accepted' | 'regenerated' | 'reprompted' | null>>({})
+  const [previousContent, setPreviousContent] = useState<string>('')
+  const [undoContext, setUndoContext] = useState<{ messageId: string, content: string, context?: any } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -314,7 +318,7 @@ export default function ChatPanel({
         </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="text-center py-8">
             <div className="w-14 h-14 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
@@ -393,7 +397,7 @@ export default function ChatPanel({
               
               <div
                 className={cn(
-                  "max-w-[85%] rounded-lg px-3 py-2 shadow-sm",
+                  "max-w-[85%] rounded-lg px-3 py-2 shadow-sm overflow-hidden",
                   message.role === 'user'
                     ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white'
                     : message.isImprovements
@@ -414,7 +418,7 @@ export default function ChatPanel({
                   </div>
                 )}
                 <div className={cn(
-                  "text-sm",
+                  "text-sm break-words overflow-wrap-anywhere",
                   (message.isImprovements || message.isMarkdown) && "prose prose-sm max-w-none",
                   message.isImprovements && "prose-amber",
                   message.isMarkdown && "prose-emerald"
@@ -424,20 +428,20 @@ export default function ChatPanel({
                       remarkPlugins={[remarkGfm]}
                       components={{
                         // Customize markdown components for better styling
-                        h1: ({children}) => <h1 className="text-lg font-bold mt-3 mb-2">{children}</h1>,
-                        h2: ({children}) => <h2 className="text-base font-semibold mt-3 mb-2">{children}</h2>,
-                        h3: ({children}) => <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>,
-                        p: ({children}) => <p className="mb-2">{children}</p>,
-                        ul: ({children}) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
-                        ol: ({children}) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
-                        li: ({children}) => <li className="text-sm">{children}</li>,
+                        h1: ({children}) => <h1 className="text-lg font-bold mt-3 mb-2 break-words">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-base font-semibold mt-3 mb-2 break-words">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-sm font-semibold mt-2 mb-1 break-words">{children}</h3>,
+                        p: ({children}) => <p className="mb-2 break-words whitespace-pre-wrap">{children}</p>,
+                        ul: ({children}) => <ul className="list-disc pl-5 mb-2 space-y-1 break-words">{children}</ul>,
+                        ol: ({children}) => <ol className="list-decimal pl-5 mb-2 space-y-1 break-words">{children}</ol>,
+                        li: ({children}) => <li className="text-sm break-words">{children}</li>,
                         code: ({inline, children}) => 
                           inline ? (
-                            <code className="px-1 py-0.5 bg-slate-100 rounded text-xs font-mono">{children}</code>
+                            <code className="px-1 py-0.5 bg-slate-100 rounded text-xs font-mono break-all">{children}</code>
                           ) : (
-                            <code className="block p-3 bg-slate-100 rounded text-xs font-mono overflow-x-auto">{children}</code>
+                            <code className="block p-3 bg-slate-100 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">{children}</code>
                           ),
-                        pre: ({children}) => <pre className="mb-2">{children}</pre>,
+                        pre: ({children}) => <pre className="mb-2 overflow-x-auto whitespace-pre-wrap break-words">{children}</pre>,
                         blockquote: ({children}) => (
                           <blockquote className="border-l-4 border-slate-300 pl-3 italic my-2">{children}</blockquote>
                         ),
@@ -461,71 +465,150 @@ export default function ChatPanel({
                 
                 {/* Interactive actions only for markdown messages */}
                 {message.role === 'assistant' && message.isMarkdown && message === lastAssistantMessage && !isGenerating && (
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-                    {onAcceptContent && (
-                      <button
-                        onClick={(e) => {
-                          // Extract just the markdown content (remove the "## Suggested Markdown" header if present)
-                          let markdownContent = message.content
-                          if (markdownContent.includes('## Suggested Markdown')) {
-                            markdownContent = markdownContent.split('## Suggested Markdown')[1]?.trim() || message.content
-                          }
-                          
-                          // Strip markdown code block formatting
-                          // Remove ```markdown from the beginning
-                          markdownContent = markdownContent.replace(/^```markdown\n?/, '')
-                          // Remove ``` from the end
-                          markdownContent = markdownContent.replace(/\n?```$/, '')
-                          // Also handle other code block languages
-                          markdownContent = markdownContent.replace(/^```[a-z]*\n?/, '')
-                          
-                          // Trim any extra whitespace
-                          markdownContent = markdownContent.trim()
-                          
-                          // Pass the context so we know where to insert
-                          onAcceptContent(markdownContent, lastContext)
-                          // Show success feedback
-                          const btn = e.currentTarget
-                          const originalText = btn.textContent
-                          btn.innerHTML = '<svg class="h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Added'
-                          btn.disabled = true
-                          setTimeout(() => {
-                            btn.innerHTML = originalText || 'Accept'
-                            btn.disabled = false
-                          }, 2000)
-                        }}
-                        className="flex items-center gap-1 px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-md text-xs font-medium transition-all duration-200 hover:shadow-sm"
-                      >
-                        <Check className="h-3 w-3" />
-                        Accept
-                      </button>
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    {actionStates[message.id] ? (
+                      // Show completed state
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs">
+                          <Check className="h-4 w-4 text-green-600" />
+                          <span className="text-green-700 font-medium">
+                            {actionStates[message.id] === 'accepted' && 'Content accepted and added to editor'}
+                            {actionStates[message.id] === 'regenerated' && 'Response regenerated'}
+                            {actionStates[message.id] === 'reprompted' && 'Modified and resent'}
+                          </span>
+                        </div>
+                        {undoContext && undoContext.messageId === message.id && (
+                          <button
+                            onClick={() => {
+                              // Restore previous content
+                              if (onAcceptContent && undoContext.content) {
+                                // For undo, we replace the entire editor content with the previous content
+                                onAcceptContent(undoContext.content, { type: 'full', content: undoContext.content })
+                                // Clear the action state and undo context
+                                setActionStates(prev => ({ ...prev, [message.id]: null }))
+                                setUndoContext(null)
+                              }
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-md text-xs font-medium transition-all duration-200"
+                          >
+                            <Undo2 className="h-3 w-3" />
+                            Undo
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      // Show action buttons
+                      <div className="flex flex-wrap gap-2">
+                        {onAcceptContent && (
+                          <button
+                            onClick={(e) => {
+                              // Save current editor content for undo
+                              setPreviousContent(editorContent)
+                              setUndoContext({
+                                messageId: message.id,
+                                content: editorContent,
+                                context: lastContext
+                              })
+                              
+                              // Extract and clean the markdown content
+                              let markdownContent = message.content
+                              
+                              // Remove common AI response headers
+                              if (markdownContent.includes('## Suggested Markdown')) {
+                                markdownContent = markdownContent.split('## Suggested Markdown')[1]?.trim() || message.content
+                              }
+                              if (markdownContent.includes('Here is the improved')) {
+                                markdownContent = markdownContent.split(/Here is the improved.*?:/i)[1]?.trim() || markdownContent
+                              }
+                              if (markdownContent.includes('Here\'s the updated')) {
+                                markdownContent = markdownContent.split(/Here'?s the updated.*?:/i)[1]?.trim() || markdownContent
+                              }
+                              
+                              // Strip markdown code block formatting
+                              markdownContent = markdownContent.replace(/^```(?:markdown|md)?\n?/, '')
+                              markdownContent = markdownContent.replace(/\n?```$/, '')
+                              // Also handle other code block languages
+                              markdownContent = markdownContent.replace(/^```[a-z]*\n?/, '')
+                              
+                              // Convert plain text lists to markdown if needed
+                              const lines = markdownContent.split('\n')
+                              const convertedLines = lines.map(line => {
+                                const trimmed = line.trim()
+                                
+                                // Convert plain bullet points to markdown
+                                if (trimmed.match(/^[•·◦▪▫◆◇★☆→➤]/)) {
+                                  return line.replace(/^(\s*)[•·◦▪▫◆◇★☆→➤]\s*/, '$1- ')
+                                }
+                                
+                                // Convert numbered lists without proper markdown
+                                if (trimmed.match(/^\d+\)\s/)) {
+                                  return line.replace(/^(\s*)(\d+)\)\s/, '$1$2. ')
+                                }
+                                
+                                // Convert plain headers (lines that look like headers but aren't)
+                                if (trimmed.length > 0 && trimmed === trimmed.toUpperCase() && trimmed.length < 50 && !trimmed.startsWith('#')) {
+                                  return `## ${trimmed}`
+                                }
+                                
+                                return line
+                              })
+                              markdownContent = convertedLines.join('\n')
+                              
+                              // Ensure proper spacing around headers
+                              markdownContent = markdownContent.replace(/([^\n])\n(#{1,6}\s)/g, '$1\n\n$2')
+                              markdownContent = markdownContent.replace(/(#{1,6}\s[^\n]+)\n([^\n#])/g, '$1\n\n$2')
+                              
+                              // Ensure lists have proper spacing
+                              markdownContent = markdownContent.replace(/([^\n])\n(\s*[-*+]\s)/g, '$1\n\n$2')
+                              
+                              // Clean up excessive blank lines
+                              markdownContent = markdownContent.replace(/\n{3,}/g, '\n\n')
+                              
+                              // Trim any extra whitespace
+                              markdownContent = markdownContent.trim()
+                              
+                              // Pass the context so we know where to insert
+                              onAcceptContent(markdownContent, lastContext)
+                              
+                              // Mark as accepted
+                              setActionStates(prev => ({ ...prev, [message.id]: 'accepted' }))
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-md text-xs font-medium transition-all duration-200 hover:shadow-sm"
+                          >
+                            <Check className="h-3 w-3" />
+                            Accept
+                          </button>
+                        )}
+                        
+                        <button
+                          onClick={() => {
+                            // Regenerate with same prompt and original context
+                            if (lastUserPrompt) {
+                              onSendMessage(lastUserPrompt, lastContext)
+                              setActionStates(prev => ({ ...prev, [message.id]: 'regenerated' }))
+                            }
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-xs font-medium transition-all duration-200 hover:shadow-sm"
+                          disabled={!lastUserPrompt}
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Regenerate
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            // Focus input for reprompting
+                            textareaRef.current?.focus()
+                            setInput('Please revise: ')
+                            setActionStates(prev => ({ ...prev, [message.id]: 'reprompted' }))
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-md text-xs font-medium transition-all duration-200 hover:shadow-sm"
+                        >
+                          <MessageCircle className="h-3 w-3" />
+                          Reprompt
+                        </button>
+                      </div>
                     )}
-                    
-                    <button
-                      onClick={() => {
-                        // Regenerate with same prompt and original context
-                        if (lastUserPrompt) {
-                          onSendMessage(lastUserPrompt, lastContext)
-                        }
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-xs font-medium transition-all duration-200 hover:shadow-sm"
-                      disabled={!lastUserPrompt}
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      Regenerate
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        // Focus input for reprompting
-                        textareaRef.current?.focus()
-                        setInput('Please revise: ')
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-md text-xs font-medium transition-all duration-200 hover:shadow-sm"
-                    >
-                      <MessageCircle className="h-3 w-3" />
-                      Reprompt
-                    </button>
                   </div>
                 )}
               </div>
