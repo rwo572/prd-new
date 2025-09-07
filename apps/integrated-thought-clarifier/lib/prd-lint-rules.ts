@@ -1,6 +1,26 @@
 import { PRDLintRule, ParsedPRD, LintIssue } from '@/types/prd-linter'
 import { AI_PRD_LINT_RULES, AI_AUTO_FIX_TEMPLATES } from './ai-prd-lint-rules'
 
+// Helper function to find text position in content
+function findTextPosition(content: string, searchTerm: string, caseInsensitive = true): { startOffset: number; endOffset: number; line: number; column: number } | null {
+  const searchContent = caseInsensitive ? content.toLowerCase() : content
+  const searchFor = caseInsensitive ? searchTerm.toLowerCase() : searchTerm
+  const index = searchContent.indexOf(searchFor)
+  
+  if (index === -1) return null
+  
+  const lines = content.substring(0, index).split('\n')
+  const line = lines.length
+  const column = lines[lines.length - 1].length + 1
+  
+  return {
+    startOffset: index,
+    endOffset: index + searchTerm.length,
+    line,
+    column
+  }
+}
+
 // Combine standard and AI-specific rules
 export const PRD_LINT_RULES: PRDLintRule[] = [
   // COMPLETENESS CHECKS
@@ -15,12 +35,19 @@ export const PRD_LINT_RULES: PRDLintRule[] = [
       const matches = prd.content.match(userStoryPattern)
       
       if (!matches || matches.length === 0) {
+        // Try to find where user stories should be added
+        const position = findTextPosition(prd.content, 'user stor') || 
+                         findTextPosition(prd.content, 'requirement') ||
+                         findTextPosition(prd.content, 'feature') ||
+                         { startOffset: 0, endOffset: 50, line: 1, column: 1 }
+        
         return [{
           ruleId: 'has-user-stories',
           severity: 'error',
           message: 'No user stories found',
           suggestion: 'Add user stories in format: "As a [user], I want [feature] so that [benefit]"',
-          category: 'completeness'
+          category: 'completeness',
+          ...position
         }]
       }
       return []
@@ -40,12 +67,19 @@ export const PRD_LINT_RULES: PRDLintRule[] = [
       )
       
       if (!hasAcceptance) {
+        // Find a relevant position to highlight
+        const position = findTextPosition(prd.content, 'criteria') || 
+                         findTextPosition(prd.content, 'requirement') ||
+                         findTextPosition(prd.content, 'specification') ||
+                         { startOffset: 0, endOffset: 50, line: 1, column: 1 }
+        
         return [{
           ruleId: 'has-acceptance-criteria',
           severity: 'warning',
           message: 'No acceptance criteria specified',
           suggestion: 'Add acceptance criteria: Given [context], When [action], Then [outcome]',
-          category: 'completeness'
+          category: 'completeness',
+          ...position
         }]
       }
       return []
@@ -171,12 +205,18 @@ export const PRD_LINT_RULES: PRDLintRule[] = [
       )
       
       if (!hasScope) {
+        const position = findTextPosition(prd.content, 'scope') || 
+                         findTextPosition(prd.content, 'boundary') ||
+                         findTextPosition(prd.content, 'include') ||
+                         { startOffset: 0, endOffset: 50, line: 1, column: 1 }
+        
         return [{
           ruleId: 'has-clear-scope',
           severity: 'info',
           message: 'No explicit scope definition found',
           suggestion: 'Add sections: "In Scope:" and "Out of Scope:" to clarify boundaries',
-          category: 'clarity'
+          category: 'clarity',
+          ...position
         }]
       }
       return []
@@ -248,13 +288,19 @@ export const PRD_LINT_RULES: PRDLintRule[] = [
       )
       
       if (!hasErrorHandling) {
+        const position = findTextPosition(prd.content, 'error') || 
+                         findTextPosition(prd.content, 'fail') ||
+                         findTextPosition(prd.content, 'exception') ||
+                         { startOffset: 0, endOffset: 50, line: 1, column: 1 }
+        
         return [{
           ruleId: 'has-error-handling',
           severity: 'error',
           message: 'No error handling specified',
           suggestion: 'Add error states: validation errors, network failures, server errors, etc.',
           category: 'ux',
-          autoFixable: true
+          autoFixable: true,
+          ...position
         }]
       }
       return []

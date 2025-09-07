@@ -7,11 +7,6 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Integrated Thought Clarifier',
   description: 'Transform ideas into prototype-ready PRDs with AI-powered guidance',
-  icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/favicon.svg',
-  },
 }
 
 export default function RootLayout({

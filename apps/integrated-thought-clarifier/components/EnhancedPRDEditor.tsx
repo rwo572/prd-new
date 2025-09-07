@@ -9,14 +9,17 @@ import {
   SplitSquareHorizontal,
   Sparkles,
   RefreshCw,
-  Eye
+  Eye,
+  MessageSquare
 } from 'lucide-react'
 import DocumentOutline from './DocumentOutline'
 import PRDLinter from './PRDLinter'
+import ChatPanel from './ChatPanel'
 import ResizablePanels from './ResizablePanels'
 import MarkdownToolbar from './MarkdownToolbar'
 import { cn } from '@/lib/utils'
 import { LintIssue } from '@/types/prd-linter'
+import { Message } from '@/types'
 import { applyMarkdownAction } from '@/lib/markdown-editor-actions'
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -34,18 +37,36 @@ interface EnhancedPRDEditorProps {
   content: string
   onChange: (value: string) => void
   projectName: string
+  onProjectNameChange?: (name: string) => void
   anthropicApiKey?: string
   selectedModel?: string
   onGeneratePrototype?: () => void
+  messages: Message[]
+  onSendMessage: (message: string, context?: any) => void
+  isGenerating: boolean
+  streamingThought?: string
+  streamingContent?: string
+  apiKeys?: any
+  onClearMessages?: () => void
+  error?: string | null
 }
 
 export default function EnhancedPRDEditor({
   content,
   onChange,
   projectName,
+  onProjectNameChange,
   anthropicApiKey,
   selectedModel,
-  onGeneratePrototype
+  onGeneratePrototype,
+  messages,
+  onSendMessage,
+  isGenerating,
+  streamingThought,
+  streamingContent,
+  apiKeys,
+  onClearMessages,
+  error
 }: EnhancedPRDEditorProps) {
   // Client-side mounting check
   const [isMounted, setIsMounted] = useState(false)
@@ -55,18 +76,23 @@ export default function EnhancedPRDEditor({
   const [showEditor, setShowEditor] = useLocalStorage('editor-show-editor', true)
   const [showPreview, setShowPreview] = useLocalStorage('editor-show-preview', false)
   const [showLinter, setShowLinter] = useLocalStorage('editor-show-linter', false)
+  const [showChat, setShowChat] = useLocalStorage('editor-show-chat', true)
   
   // Use default values during SSR to prevent hydration mismatch
+  // After mount, use localStorage values; before mount use SSR defaults
   const safeShowOutline = isMounted ? showOutline : true
   const safeShowEditor = isMounted ? showEditor : true
   const safeShowPreview = isMounted ? showPreview : false
   const safeShowLinter = isMounted ? showLinter : false
+  const safeShowChat = isMounted ? showChat : false
   
   // Editor state
   const editorRef = useRef<any>(null)
   const monacoRef = useRef<any>(null)
   const [highlightPosition, setHighlightPosition] = useState<any>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+  const [selectedText, setSelectedText] = useState<string>('')
+  const [selectionRange, setSelectionRange] = useState<{ start: number, end: number } | undefined>()
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -101,12 +127,16 @@ export default function EnhancedPRDEditor({
           e.preventDefault()
           setShowLinter(!showLinter)
           break
+        case '5':
+          e.preventDefault()
+          setShowChat(!showChat)
+          break
       }
     }
     
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isMounted, showOutline, showEditor, showPreview, showLinter, setShowOutline, setShowEditor, setShowPreview, setShowLinter])
+  }, [isMounted, showOutline, showEditor, showPreview, showLinter, showChat, setShowOutline, setShowEditor, setShowPreview, setShowLinter, setShowChat])
   
 
   // Handle outline item click
@@ -118,22 +148,68 @@ export default function EnhancedPRDEditor({
     }
   }
 
-  // Handle linter issue click
+  // Handle linter issue click - select the specific text
   const handleIssueClick = (issue: LintIssue) => {
-    if (issue.line && issue.column) {
-      setHighlightPosition({
-        line: issue.line,
-        column: issue.column,
-        startOffset: issue.startOffset,
-        endOffset: issue.endOffset
-      })
-      
-      if (editorRef.current) {
-        editorRef.current.revealLineInCenter(issue.line)
-        editorRef.current.setPosition({ lineNumber: issue.line, column: issue.column })
-        editorRef.current.focus()
-      }
+    console.log('Linter issue clicked:', issue)
+    
+    // Ensure the editor panel is visible
+    if (!showEditor) {
+      setShowEditor(true)
     }
+    
+    // Wait a tick for the editor to become visible if it wasn't
+    setTimeout(() => {
+      if (editorRef.current && monacoRef.current) {
+        const editor = editorRef.current
+        const monaco = monacoRef.current
+        const model = editor.getModel()
+        
+        if (model) {
+          // If we have specific offsets, use them to select text
+          if (issue.startOffset !== undefined && issue.endOffset !== undefined) {
+            const startPos = model.getPositionAt(issue.startOffset)
+            const endPos = model.getPositionAt(issue.endOffset)
+          
+          // Create a selection range
+          const selection = new monaco.Selection(
+            startPos.lineNumber,
+            startPos.column,
+            endPos.lineNumber,
+            endPos.column
+          )
+          
+          // Set the selection in the editor
+          editor.setSelection(selection)
+          
+          // Reveal the selection in the center of the editor
+          editor.revealLineInCenter(startPos.lineNumber)
+          
+          // Focus the editor
+          editor.focus()
+          
+          // Update highlight position for visual feedback
+          setHighlightPosition({
+            line: startPos.lineNumber,
+            column: startPos.column,
+            startOffset: issue.startOffset,
+            endOffset: issue.endOffset
+          })
+          } else if (issue.line && issue.column) {
+            // Fallback to line/column positioning
+            editor.revealLineInCenter(issue.line)
+            editor.setPosition({ lineNumber: issue.line, column: issue.column })
+            editor.focus()
+            
+            setHighlightPosition({
+              line: issue.line,
+              column: issue.column,
+              startOffset: issue.startOffset,
+              endOffset: issue.endOffset
+            })
+          }
+        }
+      }
+    }, showEditor ? 0 : 100) // Wait longer if editor needs to be shown
   }
 
   // Handle suggestion apply
@@ -151,10 +227,19 @@ export default function EnhancedPRDEditor({
     }
   }
 
-  // Set mounted state after hydration
+  // Set mounted state after hydration and show linter by default for new users
   useEffect(() => {
     setIsMounted(true)
-  }, [])
+    
+    // Check if this is the first time - if no localStorage key exists, show linter
+    if (typeof window !== 'undefined') {
+      const hasLinterPreference = window.localStorage.getItem('editor-show-linter')
+      if (hasLinterPreference === null) {
+        // First time user - show the linter
+        setShowLinter(true)
+      }
+    }
+  }, [setShowLinter])
   
   // Handle highlighting when position changes
   useEffect(() => {
@@ -204,11 +289,33 @@ export default function EnhancedPRDEditor({
       return
     }
     
-    setIsGenerating(true)
+    setIsRegenerating(true)
     if (onGeneratePrototype) {
       await onGeneratePrototype()
     }
-    setIsGenerating(false)
+    setIsRegenerating(false)
+  }
+
+  // Handle text replacement from chat
+  const handleReplaceText = (start: number, end: number, newText: string) => {
+    const before = content.substring(0, start)
+    const after = content.substring(end)
+    onChange(before + newText + after)
+    
+    // Highlight the changed text
+    setHighlightPosition({
+      line: 0, // Will be calculated by Monaco
+      column: 0,
+      startOffset: start,
+      endOffset: start + newText.length
+    })
+    
+    // Reset selection after replacement
+    setSelectedText('')
+    setSelectionRange(undefined)
+    
+    // Clear highlight after a delay
+    setTimeout(() => setHighlightPosition(null), 3000)
   }
 
   // Calculate column count for layout
@@ -216,23 +323,31 @@ export default function EnhancedPRDEditor({
 
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Navigation Bar */}
-      <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h3 className="font-semibold text-sm text-gray-900">Editor</h3>
+      {/* Compact Navigation Bar - Single Line */}
+      <div className="relative z-50 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white px-4 py-2 flex items-center justify-between backdrop-blur-sm">
+        <div className="flex items-center gap-3 flex-1">
+          {/* Project Name */}
+          <input
+            type="text"
+            value={projectName}
+            onChange={(e) => onProjectNameChange?.(e.target.value)}
+            className="font-semibold text-sm text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 transition-colors"
+            placeholder="Project Name"
+            readOnly={!onProjectNameChange}
+          />
           
           {/* Divider */}
-          <div className="h-5 w-px bg-gray-300" />
+          <div className="h-5 w-px bg-slate-300" />
           
           {/* Column Toggle Buttons */}
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowOutline(!showOutline)}
               className={cn(
-                "p-1.5 rounded transition-colors",
+                "p-1.5 rounded-lg transition-all duration-200",
                 safeShowOutline 
-                  ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
-                  : "hover:bg-gray-100 text-gray-600"
+                  ? "bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm" 
+                  : "hover:bg-slate-100 text-slate-600"
               )}
               title="Outline (1)"
             >
@@ -242,10 +357,10 @@ export default function EnhancedPRDEditor({
             <button
               onClick={() => setShowEditor(!showEditor)}
               className={cn(
-                "p-1.5 rounded transition-colors",
+                "p-1.5 rounded-lg transition-all duration-200",
                 safeShowEditor 
-                  ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
-                  : "hover:bg-gray-100 text-gray-600"
+                  ? "bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm" 
+                  : "hover:bg-slate-100 text-slate-600"
               )}
               title="Editor (2)"
             >
@@ -255,10 +370,10 @@ export default function EnhancedPRDEditor({
             <button
               onClick={() => setShowPreview(!showPreview)}
               className={cn(
-                "p-1.5 rounded transition-colors",
+                "p-1.5 rounded-lg transition-all duration-200",
                 safeShowPreview 
-                  ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
-                  : "hover:bg-gray-100 text-gray-600"
+                  ? "bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm" 
+                  : "hover:bg-slate-100 text-slate-600"
               )}
               title="Preview (3)"
             >
@@ -268,45 +383,56 @@ export default function EnhancedPRDEditor({
             <button
               onClick={() => setShowLinter(!showLinter)}
               className={cn(
-                "p-1.5 rounded transition-colors",
+                "p-1.5 rounded-lg transition-all duration-200",
                 safeShowLinter 
-                  ? "bg-purple-100 text-purple-700 hover:bg-purple-200" 
-                  : "hover:bg-gray-100 text-gray-600"
+                  ? "bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm" 
+                  : "hover:bg-slate-100 text-slate-600"
               )}
               title="Linter (4)"
             >
               <CheckCircle className="h-4 w-4" />
             </button>
+            
+            <button
+              onClick={() => setShowChat(!showChat)}
+              className={cn(
+                "p-1.5 rounded-lg transition-all duration-200",
+                safeShowChat 
+                  ? "bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm" 
+                  : "hover:bg-slate-100 text-slate-600"
+              )}
+              title="Chat (5)"
+            >
+              <MessageSquare className="h-4 w-4" />
+            </button>
           </div>
         </div>
         
         {/* Generate Prototype Button */}
-        <div className="flex items-center gap-2">
-            {onGeneratePrototype && (
-              <button
-                onClick={handleRegenerate}
-                disabled={isMounted ? (isGenerating || !content.trim()) : false}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                  (isMounted && (isGenerating || !content.trim()))
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-purple-600 text-white hover:bg-purple-700"
-                )}
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />
-                    <span>Generate Prototype</span>
-                  </>
-                )}
-              </button>
+        {onGeneratePrototype && (
+          <button
+            onClick={handleRegenerate}
+            disabled={isMounted ? (isRegenerating || !content.trim()) : false}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm ml-3",
+              (isMounted && (isRegenerating || !content.trim()))
+                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-indigo-500 to-blue-500 text-white hover:from-indigo-600 hover:to-blue-600 hover:shadow-md"
             )}
-        </div>
+          >
+            {isRegenerating ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Generating...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                <span>Generate Prototype</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Content Area */}
@@ -317,7 +443,7 @@ export default function EnhancedPRDEditor({
             safeShowOutline ? {
               id: 'outline',
               content: (
-                <div className="h-full border-r border-gray-200 bg-gray-50">
+                <div className="h-full border-r border-slate-200 bg-gradient-to-b from-slate-50 to-white">
                   <DocumentOutline
                     content={content}
                     onItemClick={handleOutlineClick}
@@ -374,6 +500,24 @@ export default function EnhancedPRDEditor({
                       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
                       run: () => applyMarkdownAction(editor, 'link')
                     })
+                    
+                    // Track selection changes
+                    editor.onDidChangeCursorSelection((e) => {
+                      const selection = editor.getSelection()
+                      if (selection && !selection.isEmpty()) {
+                        const model = editor.getModel()
+                        if (model) {
+                          const selectedText = model.getValueInRange(selection)
+                          const startOffset = model.getOffsetAt(selection.getStartPosition())
+                          const endOffset = model.getOffsetAt(selection.getEndPosition())
+                          setSelectedText(selectedText)
+                          setSelectionRange({ start: startOffset, end: endOffset })
+                        }
+                      } else {
+                        setSelectedText('')
+                        setSelectionRange(undefined)
+                      }
+                    })
                   }}
                   options={{
                     minimap: { enabled: false },
@@ -409,7 +553,7 @@ export default function EnhancedPRDEditor({
                       <span className="text-sm font-medium">Rich Text Preview</span>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto">
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden">
                     <MarkdownPreview content={content} />
                   </div>
                 </div>
@@ -421,7 +565,7 @@ export default function EnhancedPRDEditor({
             safeShowLinter ? {
               id: 'linter',
               content: (
-                <div className="h-full border-l border-gray-200">
+                <div className="h-full border-l border-slate-200">
                   <PRDLinter
                     content={content}
                     onAutoFix={(fixedContent) => onChange(fixedContent)}
@@ -435,6 +579,119 @@ export default function EnhancedPRDEditor({
               defaultWidth: 320,
               minWidth: 200,
               maxWidth: 600
+            } : null,
+            safeShowChat ? {
+              id: 'chat',
+              content: (
+                <div className="h-full border-l border-slate-200">
+                  <ChatPanel
+                    messages={messages}
+                    onSendMessage={onSendMessage}
+                    isGenerating={isGenerating}
+                    editorContent={content}
+                    selectedText={selectedText}
+                    selectionRange={selectionRange}
+                    onReplaceText={handleReplaceText}
+                    onAcceptContent={(newContent, context) => {
+                      if (context?.type === 'selection' && context.selectionStart !== undefined && context.selectionEnd !== undefined) {
+                        // Replace the selected text with the new content
+                        const before = content.substring(0, context.selectionStart)
+                        const after = content.substring(context.selectionEnd)
+                        const updatedContent = before + newContent + after
+                        onChange(updatedContent)
+                        
+                        // Highlight the inserted text
+                        setHighlightPosition({
+                          line: 0,
+                          column: 0,
+                          startOffset: context.selectionStart,
+                          endOffset: context.selectionStart + newContent.length
+                        })
+                        
+                        // Clear highlight after 5 seconds
+                        setTimeout(() => setHighlightPosition(null), 5000)
+                        
+                        // Show the editor if it's hidden
+                        if (!showEditor) {
+                          setShowEditor(true)
+                        }
+                        
+                        // Focus and scroll to the changed text
+                        setTimeout(() => {
+                          if (editorRef.current && monacoRef.current) {
+                            const model = editorRef.current.getModel()
+                            if (model) {
+                              const position = model.getPositionAt(context.selectionStart + newContent.length)
+                              editorRef.current.setPosition(position)
+                              editorRef.current.revealLineInCenter(position.lineNumber)
+                              editorRef.current.focus()
+                            }
+                          }
+                        }, 100)
+                      } else {
+                        // Full document replacement or append
+                        if (content.trim()) {
+                          // If there's existing content, append with a separator
+                          const insertPosition = content.length
+                          const separator = '\n\n## AI Generated Content\n\n'
+                          const updatedContent = content + separator + newContent
+                          onChange(updatedContent)
+                          
+                          // Highlight the inserted text
+                          setHighlightPosition({
+                            line: 0,
+                            column: 0,
+                            startOffset: insertPosition + separator.length,
+                            endOffset: insertPosition + separator.length + newContent.length
+                          })
+                          
+                          // Clear highlight after 5 seconds
+                          setTimeout(() => setHighlightPosition(null), 5000)
+                          
+                          // Show the editor and scroll to the new content
+                          if (!showEditor) {
+                            setShowEditor(true)
+                          }
+                          
+                          setTimeout(() => {
+                            if (editorRef.current && monacoRef.current) {
+                              const model = editorRef.current.getModel()
+                              if (model) {
+                                const position = model.getPositionAt(insertPosition + separator.length)
+                                editorRef.current.setPosition(position)
+                                editorRef.current.revealLineInCenter(position.lineNumber)
+                                editorRef.current.focus()
+                              }
+                            }
+                          }, 100)
+                        } else {
+                          // If editor is empty, just set the content
+                          onChange(newContent)
+                          
+                          // Highlight all the new content
+                          setHighlightPosition({
+                            line: 0,
+                            column: 0,
+                            startOffset: 0,
+                            endOffset: newContent.length
+                          })
+                          
+                          // Clear highlight after 5 seconds
+                          setTimeout(() => setHighlightPosition(null), 5000)
+                        }
+                      }
+                    }}
+                    streamingThought={streamingThought}
+                    streamingContent={streamingContent}
+                    apiKeys={apiKeys}
+                    onClearChat={onClearMessages}
+                    error={error}
+                  />
+                </div>
+              ),
+              defaultWidth: 400,
+              minWidth: 250,
+              maxWidth: 800
             } : null
           ].filter(Boolean) as any}
         />

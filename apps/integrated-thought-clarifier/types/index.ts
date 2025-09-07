@@ -3,6 +3,8 @@ export interface Message {
   role: 'user' | 'assistant' | 'system'
   content: string
   timestamp: Date
+  isImprovements?: boolean // Indicates this is the improvements/analysis message
+  isMarkdown?: boolean // Indicates this is the markdown changes message
 }
 
 export interface PRDContext {

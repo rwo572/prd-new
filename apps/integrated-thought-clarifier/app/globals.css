@@ -188,9 +188,10 @@ body {
 }
 
 .lint-highlight-inline {
-  background-color: rgba(59, 130, 246, 0.2) !important;
-  text-decoration: underline wavy rgba(59, 130, 246, 0.5);
-  animation: pulse-highlight 2s ease-in-out infinite;
+  background-color: rgba(34, 197, 94, 0.15) !important;
+  border-left: 3px solid rgba(34, 197, 94, 0.6) !important;
+  padding-left: 4px !important;
+  animation: fade-in-highlight 0.5s ease-in-out;
 }
 
 @keyframes pulse-highlight {
@@ -199,6 +200,17 @@ body {
   }
   50% {
     background-color: rgba(59, 130, 246, 0.35);
+  }
+}
+
+@keyframes fade-in-highlight {
+  from {
+    background-color: rgba(34, 197, 94, 0.3);
+    border-left-color: rgba(34, 197, 94, 1);
+  }
+  to {
+    background-color: rgba(34, 197, 94, 0.15);
+    border-left-color: rgba(34, 197, 94, 0.6);
   }
 }
 

@@ -43,7 +43,7 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
     let hasChanges = false
     
     panels.forEach(panel => {
-      if (!(panel.id in newWidths)) {
+      if (panel && !(panel.id in newWidths)) {
         newWidths[panel.id] = panel.defaultWidth || 300
         hasChanges = true
       }
@@ -52,7 +52,7 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
     if (hasChanges) {
       setWidths(newWidths)
     }
-  }, [panels])
+  }, [panels.map(p => p?.id).join(',')]) // Only re-run when panel IDs change
 
   const handleMouseDown = (e: React.MouseEvent, panelId: string) => {
     e.preventDefault()
@@ -68,27 +68,47 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
       if (!isDragging) return
 
       const deltaX = e.clientX - startX
-      const panelIndex = panels.findIndex(p => p.id === isDragging)
+      
+      // Work with visible panels only
+      const visiblePanels = panels.filter(p => p && p.content !== null)
+      const panelIndex = visiblePanels.findIndex(p => p.id === isDragging)
       
       if (panelIndex === -1) return
 
-      const panel = panels[panelIndex]
-      const nextPanel = panels[panelIndex + 1]
+      const panel = visiblePanels[panelIndex]
+      const nextPanel = visiblePanels[panelIndex + 1]
       
       if (!nextPanel) return
 
       const currentWidth = startWidths[panel.id] || panel.defaultWidth || 300
       const nextWidth = startWidths[nextPanel.id] || nextPanel.defaultWidth || 300
       
+      // Calculate the total width available for these two panels
+      const totalWidth = currentWidth + nextWidth
+      
       // Get container width to calculate flexible minimum widths
       const containerWidth = containerRef.current?.clientWidth || 1200
       
-      // Use panel-specific minWidth or 25% of container (whichever is smaller for flexibility)
-      const panelMinWidth = Math.min(panel.minWidth || 200, containerWidth * 0.25)
-      const panelMaxWidth = Math.min(panel.maxWidth || containerWidth * 0.8, containerWidth * 0.8)
+      // Special case: if resizing between preview and chat panels, ensure chat gets at least 40%
+      const isPreviewToChatResize = panel.id === 'preview' && nextPanel.id === 'chat'
       
-      const nextPanelMinWidth = Math.min(nextPanel.minWidth || 200, containerWidth * 0.25)
-      const nextPanelMaxWidth = Math.min(nextPanel.maxWidth || containerWidth * 0.8, containerWidth * 0.8)
+      // Use panel-specific minWidth with special handling for preview-chat resize
+      let panelMinWidth = panel.minWidth || 200
+      let panelMaxWidth = panel.maxWidth || containerWidth * 0.8
+      
+      let nextPanelMinWidth = nextPanel.minWidth || 200
+      let nextPanelMaxWidth = nextPanel.maxWidth || containerWidth * 0.8
+      
+      // Special handling for preview-chat resize
+      if (isPreviewToChatResize) {
+        // Chat should be at least 40% of the total width of preview + chat
+        // Preview can be between 0% and 60% of total
+        panelMinWidth = 0
+        panelMaxWidth = totalWidth * 0.6
+        // Chat can be between 40% and 100% of total
+        nextPanelMinWidth = totalWidth * 0.4
+        nextPanelMaxWidth = totalWidth
+      }
       
       // Calculate new widths with constraints
       let newCurrentWidth = Math.max(
@@ -101,22 +121,36 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
         Math.min(nextPanelMaxWidth, nextWidth - deltaX)
       )
       
-      // Ensure total width is preserved - adjust if constraints changed the total
+      // Ensure total width is preserved
       const totalBefore = currentWidth + nextWidth
-      const totalAfter = newCurrentWidth + newNextWidth
-      const diff = totalBefore - totalAfter
       
-      if (Math.abs(diff) > 0.1) {
-        // Distribute the difference proportionally
-        const currentRatio = newCurrentWidth / (newCurrentWidth + newNextWidth)
-        const adjustment = diff * currentRatio
-        
-        newCurrentWidth = Math.max(panelMinWidth, Math.min(panelMaxWidth, newCurrentWidth + adjustment))
+      // For preview-chat resize, simply ensure the total is preserved
+      if (isPreviewToChatResize) {
+        // Adjust next panel width to maintain total
         newNextWidth = totalBefore - newCurrentWidth
         
-        // Final constraint check for next panel
-        newNextWidth = Math.max(nextPanelMinWidth, Math.min(nextPanelMaxWidth, newNextWidth))
-        newCurrentWidth = totalBefore - newNextWidth
+        // Ensure chat panel respects its minimum
+        if (newNextWidth < nextPanelMinWidth) {
+          newNextWidth = nextPanelMinWidth
+          newCurrentWidth = totalBefore - newNextWidth
+        }
+      } else {
+        // For other panel combinations, use the original logic
+        const totalAfter = newCurrentWidth + newNextWidth
+        const diff = totalBefore - totalAfter
+        
+        if (Math.abs(diff) > 0.1) {
+          // Distribute the difference proportionally
+          const currentRatio = newCurrentWidth / (newCurrentWidth + newNextWidth)
+          const adjustment = diff * currentRatio
+          
+          newCurrentWidth = Math.max(panelMinWidth, Math.min(panelMaxWidth, newCurrentWidth + adjustment))
+          newNextWidth = totalBefore - newCurrentWidth
+          
+          // Final constraint check for next panel
+          newNextWidth = Math.max(nextPanelMinWidth, Math.min(nextPanelMaxWidth, newNextWidth))
+          newCurrentWidth = totalBefore - newNextWidth
+        }
       }
       
       setWidths(prev => ({
@@ -143,7 +177,8 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
     }
   }, [isDragging, startX, startWidths, panels])
 
-  const visiblePanels = panels.filter(panel => panel.content !== null)
+  // Filter out null panels but keep track of all panel IDs for consistent ordering
+  const visiblePanels = panels.filter(panel => panel && panel.content !== null)
 
   if (visiblePanels.length === 0) {
     return null
@@ -172,12 +207,22 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
             {!isLast && (
               <div
                 className={cn(
-                  "w-1 bg-gray-200 hover:bg-purple-400 cursor-col-resize transition-colors relative",
-                  isDragging === panel.id && "bg-purple-500"
+                  "w-3 bg-slate-200 hover:bg-indigo-400 cursor-col-resize transition-all duration-200 relative group flex items-center justify-center flex-shrink-0",
+                  isDragging === panel.id && "bg-indigo-500"
                 )}
                 onMouseDown={(e) => handleMouseDown(e, panel.id)}
+                title="Drag to resize"
               >
-                <div className="absolute inset-0 -left-1 -right-1 z-10" />
+                {/* Resize handle visual indicator with larger hit area */}
+                <div className="absolute inset-0 -left-2 -right-2 z-10" />
+                {/* Grip dots */}
+                <div className="flex flex-col gap-0.5 opacity-40 group-hover:opacity-70 transition-opacity">
+                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
+                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
+                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
+                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
+                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
+                </div>
               </div>
             )}
           </div>

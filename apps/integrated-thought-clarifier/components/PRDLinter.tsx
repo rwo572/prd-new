@@ -343,7 +343,7 @@ export default function PRDLinter({
         <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-gray-400" />
-            <span className="text-sm font-medium text-gray-600">PRD Quality Score</span>
+            <span className="text-sm font-medium text-gray-600">PRD Linter</span>
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-6 text-center">
@@ -392,9 +392,46 @@ export default function PRDLinter({
     <div className="h-full flex flex-col">
       {/* Header - Matches Editor style */}
       <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center gap-2">
-          <CheckCircle className="h-4 w-4 text-gray-600" />
-          <span className="text-sm font-medium">PRD Quality Score</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-gray-600" />
+            <span className="text-sm font-medium">PRD Linter</span>
+          </div>
+          <button
+            className="text-xs text-gray-500 hover:text-gray-700"
+            title="The PRD Linter checks your document against best practices in real-time. Click any issue to jump to that text in the editor."
+          >
+            <Info className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+      
+      {/* Explainer Text */}
+      <div className="px-4 pt-3 pb-2 bg-gradient-to-b from-blue-50 to-white border-b border-gray-100">
+        <p className="text-xs text-gray-600 leading-relaxed">
+          Real-time analysis of your PRD. <span className="font-medium">Click any issue</span> to jump to that text. 
+          Use the <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded">
+            <Sparkles className="h-2.5 w-2.5" />
+            <span className="text-[10px] font-medium">AI</span>
+          </span> button for fix suggestions.
+        </p>
+        <div className="flex items-center gap-4 mt-2 text-[10px] text-gray-500">
+          <span className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+            Error (-12pts)
+          </span>
+          <span className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
+            Warning (-6pts)
+          </span>
+          <span className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+            Info (-2pts)
+          </span>
+          <span className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+            Suggestion (-1pt)
+          </span>
         </div>
       </div>
       
@@ -402,8 +439,8 @@ export default function PRDLinter({
       <div className="p-4">
         {/* Stats Row */}
         <div className="flex items-center gap-6 mb-4 text-sm">
-          {/* Quality Score */}
-          <div className="flex items-center gap-2">
+          {/* Linter Score */}
+          <div className="flex items-center gap-2" title={`Score: 100 - (${report.stats.errors}×12 + ${report.stats.warnings}×6 + ${report.stats.info}×2 + ${report.stats.suggestions}×1)`}>
             <div className={cn("text-2xl font-semibold", getScoreColor(report.score))}>
               {report.score}%
             </div>
@@ -607,7 +644,12 @@ export default function PRDLinter({
                                   issue.severity === 'warning' ? "border-amber-400" :
                                   issue.severity === 'info' ? "border-blue-400" : "border-purple-400"
                                 )}
-                                onClick={() => onIssueClick?.(issue)}
+                                onClick={() => {
+                                  // Always call onIssueClick to select text in editor
+                                  if (onIssueClick) {
+                                    onIssueClick(issue)
+                                  }
+                                }}
                                 onMouseEnter={() => setHoveredIssue(issueId)}
                                 onMouseLeave={() => setHoveredIssue(null)}
                               >
@@ -622,11 +664,14 @@ export default function PRDLinter({
                                     
                                     <div className="flex items-center gap-4 text-xs text-gray-500">
                                       {issue.line && (
-                                        <span>Line {issue.line}</span>
+                                        <span className="flex items-center gap-1">
+                                          <ArrowRight className="h-3 w-3" />
+                                          Line {issue.line}
+                                        </span>
                                       )}
                                       {issue.matchedText && (
-                                        <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">
-                                          "{issue.matchedText.length > 20 ? issue.matchedText.substring(0, 20) + '...' : issue.matchedText}"
+                                        <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono cursor-pointer hover:bg-gray-200 transition-colors" title="Click to select in editor">
+                                          "{issue.matchedText.length > 30 ? issue.matchedText.substring(0, 30) + '...' : issue.matchedText}"
                                         </code>
                                       )}
                                     </div>
@@ -699,8 +744,8 @@ export default function PRDLinter({
                                     )}
                                   </div>
                                   
-                                  {/* Quick Actions */}
-                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {/* Quick Actions - Always visible for AI button */}
+                                  <div className="flex items-center gap-1">
                                     {anthropicApiKey && issue.startOffset !== undefined && issue.endOffset !== undefined && !issue.aiSuggestions && (
                                       <button
                                         onClick={(e) => {
@@ -708,13 +753,13 @@ export default function PRDLinter({
                                           generateAISuggestions(issue)
                                         }}
                                         disabled={loadingSuggestions.has(`${issue.ruleId}-${issue.startOffset}`)}
-                                        className="p-1.5 hover:bg-purple-100 rounded transition-colors"
-                                        title="Get AI suggestions"
+                                        className="p-1.5 bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded hover:from-indigo-600 hover:to-blue-600 transition-all shadow-sm"
+                                        title="Generate AI suggestion to fix this issue"
                                       >
                                         {loadingSuggestions.has(`${issue.ruleId}-${issue.startOffset}`) ? (
-                                          <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-600" />
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
                                         ) : (
-                                          <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+                                          <Sparkles className="h-3.5 w-3.5 text-white" />
                                         )}
                                       </button>
                                     )}

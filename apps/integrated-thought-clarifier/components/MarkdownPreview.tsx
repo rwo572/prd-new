@@ -27,24 +27,24 @@ export default function MarkdownPreview({ content, className }: MarkdownPreviewP
 
   return (
     <div className={cn("h-full overflow-y-auto", className)}>
-      <div className="prose prose-sm max-w-none p-6">
+      <div className="prose prose-sm max-w-none p-6 break-words">
         <ReactMarkdown 
           remarkPlugins={[remarkGfm]}
           components={{
             h1: ({ children }) => (
-              <h1 className="text-2xl font-bold mt-6 mb-4 text-gray-900">{children}</h1>
+              <h1 className="text-2xl font-bold mt-6 mb-4 text-gray-900 break-words">{children}</h1>
             ),
             h2: ({ children }) => (
-              <h2 className="text-xl font-semibold mt-5 mb-3 text-gray-800">{children}</h2>
+              <h2 className="text-xl font-semibold mt-5 mb-3 text-gray-800 break-words">{children}</h2>
             ),
             h3: ({ children }) => (
-              <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-700">{children}</h3>
+              <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-700 break-words">{children}</h3>
             ),
             h4: ({ children }) => (
-              <h4 className="text-base font-semibold mt-3 mb-2 text-gray-700">{children}</h4>
+              <h4 className="text-base font-semibold mt-3 mb-2 text-gray-700 break-words">{children}</h4>
             ),
             p: ({ children }) => (
-              <p className="mb-4 text-gray-600 leading-relaxed">{children}</p>
+              <p className="mb-4 text-gray-600 leading-relaxed break-words overflow-wrap-anywhere">{children}</p>
             ),
             ul: ({ children }) => (
               <ul className="mb-4 ml-6 list-disc space-y-2">{children}</ul>
@@ -53,7 +53,7 @@ export default function MarkdownPreview({ content, className }: MarkdownPreviewP
               <ol className="mb-4 ml-6 list-decimal space-y-2">{children}</ol>
             ),
             li: ({ children }) => (
-              <li className="text-gray-600">{children}</li>
+              <li className="text-gray-600 break-words">{children}</li>
             ),
             blockquote: ({ children }) => (
               <blockquote className="border-l-4 border-purple-500 pl-4 my-4 italic text-gray-600">
@@ -69,7 +69,7 @@ export default function MarkdownPreview({ content, className }: MarkdownPreviewP
                 )
               }
               return (
-                <code className="block p-4 bg-gray-50 rounded-lg text-sm font-mono overflow-x-auto">
+                <code className="block p-4 bg-gray-50 rounded-lg text-sm font-mono overflow-x-auto whitespace-pre-wrap break-words">
                   {children}
                 </code>
               )

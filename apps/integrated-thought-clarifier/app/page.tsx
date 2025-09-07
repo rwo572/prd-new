@@ -2,27 +2,29 @@
 
 import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
-import AIDiscoveryModal from '@/components/AIDiscoveryModal'
 import EnhancedPRDEditor from '@/components/EnhancedPRDEditor'
 import ApiKeyManager from '@/components/ApiKeyManager'
 import GitHubIntegration from '@/components/GitHubIntegration'
 import ModelSelector from '@/components/model-selector'
 import BoltPrototype from '@/components/BoltPrototype'
 import GitHubCommitsView from '@/components/GitHubCommitsView'
-import { FileText, Settings, Github, MessageSquare, Download, Save, Code2, RefreshCw, Sparkles, GitCommit } from 'lucide-react'
+import { FileText, Settings, Github, Download, Save, Code2, RefreshCw, Sparkles, GitCommit, Bot } from 'lucide-react'
 import { PRDContext, Message } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { generatePRD } from '@/lib/ai-service'
+import { streamChatResponse } from '@/lib/ai-chat-service'
 import { savePRDLocally, exportPRD } from '@/lib/storage'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'editor' | 'prototype' | 'commits' | 'settings'>('editor')
-  const [showAIDiscovery, setShowAIDiscovery] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [githubConnected, setGithubConnected] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const [prototypeCode, setPrototypeCode] = useLocalStorage<string>('prototype-code', '')
+  const [streamingThought, setStreamingThought] = useState('')
+  const [streamingContent, setStreamingContent] = useState('')
+  const [chatError, setChatError] = useState<string | null>(null)
   
   // Use localStorage hooks - will only work on client
   const [messages, setMessages] = useLocalStorage<Message[]>('prd-messages', [])
@@ -37,10 +39,6 @@ export default function Home() {
   // Set client flag after mount
   useEffect(() => {
     setIsClient(true)
-    // Auto-open AI Discovery modal if no messages exist (first time user)
-    if (messages.length === 0) {
-      setShowAIDiscovery(true)
-    }
   }, [])
 
   // Check if we're in demo mode (no API keys)
@@ -49,7 +47,13 @@ export default function Home() {
     setDemoMode(isDemo)
   }, [apiKeys])
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, editorContext?: { 
+    type: 'full' | 'selection', 
+    content: string,
+    selectionStart?: number,
+    selectionEnd?: number 
+  }) => {
+    // Create user message
     const newMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -59,39 +63,110 @@ export default function Home() {
     
     setMessages(prev => [...prev, newMessage])
     setIsGenerating(true)
+    setStreamingThought('')
+    setStreamingContent('')
+    setChatError(null)
 
     try {
-      const context: PRDContext = {
-        messages: [...messages, newMessage],
-        currentPRD: prdContent,
-        projectName: currentProject
-      }
-
-      const response = await generatePRD(context, apiKeys)
+      // Add a timeout to prevent infinite generating state
+      const timeoutId = setTimeout(() => {
+        if (isGenerating) {
+          console.error('Chat response timed out')
+          setChatError('Response timed out. Please try again.')
+          setIsGenerating(false)
+          setStreamingThought('')
+          setStreamingContent('')
+        }
+      }, 30000) // 30 second timeout
       
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response.message,
-        timestamp: new Date()
-      }
-      
-      setMessages(prev => [...prev, aiMessage])
-      
-      if (response.updatedPRD) {
-        setPrdContent(response.updatedPRD)
-      }
+      // Use streaming for chat responses
+      await streamChatResponse(
+        content,
+        editorContext,
+        apiKeys,
+        {
+          onThought: (thought) => {
+            setStreamingThought(thought)
+          },
+          onContent: (content) => {
+            setStreamingContent(content)
+          },
+          onComplete: (fullResponse) => {
+            clearTimeout(timeoutId) // Clear the timeout
+            
+            // Check if response has the two-part format
+            const improvementsMatch = fullResponse.match(/\[IMPROVEMENTS\]([\s\S]*?)\[MARKDOWN_CHANGES\]/);
+            const markdownMatch = fullResponse.match(/\[MARKDOWN_CHANGES\]([\s\S]*?)$/);
+            
+            if (improvementsMatch && markdownMatch) {
+              // Split into two messages
+              const improvementsContent = improvementsMatch[1].trim();
+              const markdownContent = markdownMatch[1].trim();
+              
+              // Add improvements message (without controls)
+              const improvementsMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: improvementsContent,
+                timestamp: new Date(),
+                isImprovements: true // Flag to identify this message type
+              }
+              
+              // Add markdown message (with controls)
+              const markdownMessage: Message = {
+                id: (Date.now() + 2).toString(),
+                role: 'assistant',
+                content: markdownContent,
+                timestamp: new Date(),
+                isMarkdown: true // Flag to identify this message type
+              }
+              
+              setMessages(prev => [...prev, improvementsMessage, markdownMessage])
+            } else {
+              // Fallback to single message for other responses
+              const aiMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: fullResponse,
+                timestamp: new Date()
+              }
+              
+              setMessages(prev => [...prev, aiMessage])
+            }
+            
+            // If working with selection and the response contains improved content,
+            // update only that selection
+            if (editorContext?.type === 'selection' && editorContext.selectionStart !== undefined) {
+              // Extract the improved content from the response
+              const improvedMatch = fullResponse.match(/===IMPROVED CONTENT===\n([\s\S]*?)(\n===|$)/)
+              if (improvedMatch && improvedMatch[1]) {
+                const before = prdContent.substring(0, editorContext.selectionStart)
+                const after = prdContent.substring(editorContext.selectionEnd || editorContext.selectionStart)
+                setPrdContent(before + improvedMatch[1].trim() + after)
+              }
+            }
+            
+            // Clear streaming states
+            setStreamingThought('')
+            setStreamingContent('')
+            setIsGenerating(false)
+          },
+          onError: (error) => {
+            clearTimeout(timeoutId) // Clear the timeout
+            console.error('Streaming error:', error)
+            // Don't add error to message history, use temporary state
+            setChatError(error)
+            setStreamingThought('')
+            setStreamingContent('')
+            setIsGenerating(false)
+          }
+        }
+      )
     } catch (error) {
-      console.error('Error generating response:', error)
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'I encountered an error. Please check your API key settings and try again.',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
+      console.error('Error in handleSendMessage:', error)
       setIsGenerating(false)
+      setStreamingThought('')
+      setStreamingContent('')
     }
   }
 
@@ -171,106 +246,97 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-white">
       {/* Collapsed Sidebar - Icons Only */}
-      <div className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4">
-        <div className="mb-8 relative group">
-          <button
-            onClick={() => setShowAIDiscovery(!showAIDiscovery)}
-            className={`w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center cursor-pointer transform transition-all duration-200 hover:scale-110 hover:rotate-3 shadow-lg ${
-              showAIDiscovery ? 'ring-2 ring-purple-400 ring-offset-2' : ''
-            }`}
-            title="AI Discovery"
-          >
-            <MessageSquare size={24} className="text-white" />
-          </button>
-          <span className="absolute left-full ml-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 font-medium">
-            AI Discovery - Integrated Thought Clarifier
-          </span>
+      <div className="w-16 bg-white/80 backdrop-blur-sm border-r border-slate-200/50 flex flex-col items-center py-4">
+        <div className="mb-8 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg">
+            <Bot className="w-6 h-6 text-white" />
+          </div>
         </div>
 
         <nav className="flex-1 flex flex-col gap-1">
           <button
             onClick={() => setActiveTab('editor')}
-            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
-              activeTab === 'editor' ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-600'
+            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-all duration-200 ${
+              activeTab === 'editor' ? 'bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm' : 'hover:bg-slate-100 text-slate-600'
             }`}
             title="Editor"
           >
             <FileText size={20} />
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+            <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg" style={{zIndex: 9999}}>
               Editor
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('prototype')}
-            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
+            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-all duration-200 ${
               activeTab === 'prototype' 
-                ? 'bg-purple-100 text-purple-700' 
-                : 'hover:bg-gray-100 text-gray-600'
+                ? 'bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm' 
+                : 'hover:bg-slate-100 text-slate-600'
             }`}
             title="Prototype"
           >
             <Code2 size={20} />
             {isGenerating && (
               <div className="absolute top-1 right-1">
-                <div className="h-2 w-2 bg-purple-600 rounded-full animate-pulse"></div>
+                <div className="h-2 w-2 bg-cyan-500 rounded-full animate-pulse"></div>
               </div>
             )}
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+            <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg" style={{zIndex: 9999}}>
               Prototype {isGenerating && '(Generating...)'}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('commits')}
-            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
+            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-all duration-200 ${
               activeTab === 'commits' 
-                ? 'bg-purple-100 text-purple-700' 
-                : 'hover:bg-gray-100 text-gray-600'
+                ? 'bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm' 
+                : 'hover:bg-slate-100 text-slate-600'
             }`}
             title="Commits"
           >
             <GitCommit size={20} />
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+            <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg" style={{zIndex: 9999}}>
               GitHub Commits
             </span>
           </button>
         </nav>
 
-        <div className="flex flex-col gap-1 pt-4 border-t border-gray-200">
+        <div className="flex flex-col gap-1 pt-4 border-t border-slate-200/50">
           <button
             onClick={handleSavePRD}
-            className="relative group w-12 h-12 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+            className="relative group w-12 h-12 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition-all duration-200 hover:shadow-sm"
             title="Save Locally"
           >
             <Save size={20} />
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+            <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg" style={{zIndex: 9999}}>
               Save Locally
             </span>
           </button>
 
           <button
             onClick={handleExportPRD}
-            className="relative group w-12 h-12 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+            className="relative group w-12 h-12 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition-all duration-200 hover:shadow-sm"
             title="Export PRD"
           >
             <Download size={20} />
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+            <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg" style={{zIndex: 9999}}>
               Export PRD
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('settings')}
-            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-colors ${
-              activeTab === 'settings' ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-600'
+            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-all duration-200 ${
+              activeTab === 'settings' ? 'bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm' : 'hover:bg-slate-100 text-slate-600'
             }`}
             title="Settings"
           >
             <Settings size={20} />
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+            <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg" style={{zIndex: 9999}}>
               Settings
             </span>
           </button>
@@ -292,18 +358,9 @@ export default function Home() {
               />
             </div>
             <div className="flex items-center gap-4">
-              <ModelSelector 
-                apiKeys={apiKeys}
-                onModelChange={handleModelChange}
-              />
               {demoMode && (
                 <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
                   Demo Mode
-                </span>
-              )}
-              {isClient && (
-                <span className="text-sm text-gray-500">
-                  {messages.length} messages • {Math.ceil(prdContent.length / 1000)}k chars
                 </span>
               )}
             </div>
@@ -317,9 +374,21 @@ export default function Home() {
               content={prdContent}
               onChange={setPrdContent}
               projectName={currentProject}
+              onProjectNameChange={setCurrentProject}
               anthropicApiKey={apiKeys.anthropic}
               selectedModel={apiKeys.selectedModel}
               onGeneratePrototype={handleGeneratePrototype}
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isGenerating={isGenerating}
+              streamingThought={streamingThought}
+              streamingContent={streamingContent}
+              apiKeys={apiKeys}
+              onClearMessages={() => {
+                setMessages([])
+                setChatError(null)
+              }}
+              error={chatError}
             />
           )}
 
@@ -386,6 +455,15 @@ export default function Home() {
                     onUpdateKeys={setApiKeys}
                   />
                 </div>
+                
+                {/* Model Selection Section */}
+                <div className="border-t pt-6 pb-6">
+                  <h3 className="text-lg font-semibold mb-4">AI Model</h3>
+                  <ModelSelector 
+                    apiKeys={apiKeys}
+                    onModelChange={handleModelChange}
+                  />
+                </div>
 
                 {/* GitHub Integration Section */}
                 <div className="border-t pt-6">
@@ -403,14 +481,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* AI Discovery Modal */}
-      <AIDiscoveryModal
-        isOpen={showAIDiscovery}
-        onClose={() => setShowAIDiscovery(false)}
-        messages={messages}
-        onSendMessage={handleSendMessage}
-        isGenerating={isGenerating}
-      />
     </div>
   )
 }
