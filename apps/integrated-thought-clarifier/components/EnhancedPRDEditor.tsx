@@ -554,7 +554,15 @@ export default function EnhancedPRDEditor({
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto overflow-x-hidden">
-                    <MarkdownPreview content={content} />
+                    <MarkdownPreview 
+                      content={content} 
+                      onTextSelect={(text) => {
+                        setSelectedText(text)
+                        // Note: We can't set selectionRange here as it refers to editor positions
+                        // For preview selections, we'll just have the text without position info
+                        setSelectionRange(undefined)
+                      }}
+                    />
                   </div>
                 </div>
               ),

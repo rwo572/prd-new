@@ -83,73 +83,89 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
       const currentWidth = startWidths[panel.id] || panel.defaultWidth || 300
       const nextWidth = startWidths[nextPanel.id] || nextPanel.defaultWidth || 300
       
+      // Get container width
+      const containerWidth = containerRef.current?.clientWidth || 1200
+      
       // Calculate the total width available for these two panels
       const totalWidth = currentWidth + nextWidth
       
-      // Get container width to calculate flexible minimum widths
-      const containerWidth = containerRef.current?.clientWidth || 1200
+      // Calculate new widths based on drag
+      let newCurrentWidth = currentWidth + deltaX
+      let newNextWidth = nextWidth - deltaX
       
-      // Special case: if resizing between preview and chat panels, ensure chat gets at least 40%
-      const isPreviewToChatResize = panel.id === 'preview' && nextPanel.id === 'chat'
-      
-      // Use panel-specific minWidth with special handling for preview-chat resize
-      let panelMinWidth = panel.minWidth || 200
-      let panelMaxWidth = panel.maxWidth || containerWidth * 0.8
-      
-      let nextPanelMinWidth = nextPanel.minWidth || 200
-      let nextPanelMaxWidth = nextPanel.maxWidth || containerWidth * 0.8
-      
-      // Special handling for preview-chat resize
-      if (isPreviewToChatResize) {
-        // Chat should be at least 40% of the total width of preview + chat
-        // Preview can be between 0% and 60% of total
-        panelMinWidth = 0
-        panelMaxWidth = totalWidth * 0.6
-        // Chat can be between 40% and 100% of total
-        nextPanelMinWidth = totalWidth * 0.4
-        nextPanelMaxWidth = totalWidth
-      }
-      
-      // Calculate new widths with constraints
-      let newCurrentWidth = Math.max(
-        panelMinWidth,
-        Math.min(panelMaxWidth, currentWidth + deltaX)
-      )
-      
-      let newNextWidth = Math.max(
-        nextPanelMinWidth,
-        Math.min(nextPanelMaxWidth, nextWidth - deltaX)
-      )
-      
-      // Ensure total width is preserved
-      const totalBefore = currentWidth + nextWidth
-      
-      // For preview-chat resize, simply ensure the total is preserved
-      if (isPreviewToChatResize) {
-        // Adjust next panel width to maintain total
-        newNextWidth = totalBefore - newCurrentWidth
+      // Special handling when resizing with chat panel
+      if (nextPanel.id === 'chat' || panel.id === 'chat') {
+        // Chat panel should be resizable between 40-60% of container
+        const minChatPercent = 0.4
+        const maxChatPercent = 0.6
         
-        // Ensure chat panel respects its minimum
-        if (newNextWidth < nextPanelMinWidth) {
-          newNextWidth = nextPanelMinWidth
-          newCurrentWidth = totalBefore - newNextWidth
+        if (nextPanel.id === 'chat') {
+          // Resizing the preview panel (dragging the bar affects chat size)
+          // Calculate what percentage the chat panel would be
+          const chatPercent = newNextWidth / containerWidth
+          
+          // Allow chat to be between 40-60% of container
+          if (chatPercent < minChatPercent) {
+            // Chat is too small, set it to minimum
+            newNextWidth = containerWidth * minChatPercent
+            newCurrentWidth = totalWidth - newNextWidth
+          } else if (chatPercent > maxChatPercent) {
+            // Chat is too large, set it to maximum
+            newNextWidth = containerWidth * maxChatPercent
+            newCurrentWidth = totalWidth - newNextWidth
+          }
+          
+          // Don't let the preview panel get too small
+          const minPreviewWidth = 200
+          if (newCurrentWidth < minPreviewWidth) {
+            newCurrentWidth = minPreviewWidth
+            newNextWidth = totalWidth - newCurrentWidth
+          }
+        } else if (panel.id === 'chat') {
+          // Resizing chat from its right edge (if there's a panel after it)
+          const chatPercent = newCurrentWidth / containerWidth
+          
+          if (chatPercent < minChatPercent) {
+            newCurrentWidth = containerWidth * minChatPercent
+            newNextWidth = totalWidth - newCurrentWidth
+          } else if (chatPercent > maxChatPercent) {
+            newCurrentWidth = containerWidth * maxChatPercent
+            newNextWidth = totalWidth - newCurrentWidth
+          }
+          
+          // Don't let the panel after chat get too small
+          if (newNextWidth < 200) {
+            newNextWidth = 200
+            newCurrentWidth = totalWidth - newNextWidth
+          }
         }
       } else {
-        // For other panel combinations, use the original logic
+        // Normal resize for other panel combinations
+        const panelMinWidth = panel.minWidth || 200
+        const panelMaxWidth = panel.maxWidth || containerWidth * 0.8
+        const nextPanelMinWidth = nextPanel.minWidth || 200
+        const nextPanelMaxWidth = nextPanel.maxWidth || containerWidth * 0.8
+        
+        // Apply constraints
+        newCurrentWidth = Math.max(panelMinWidth, Math.min(panelMaxWidth, newCurrentWidth))
+        newNextWidth = Math.max(nextPanelMinWidth, Math.min(nextPanelMaxWidth, newNextWidth))
+        
+        // Ensure total width is preserved
         const totalAfter = newCurrentWidth + newNextWidth
-        const diff = totalBefore - totalAfter
+        const diff = totalWidth - totalAfter
         
         if (Math.abs(diff) > 0.1) {
-          // Distribute the difference proportionally
-          const currentRatio = newCurrentWidth / (newCurrentWidth + newNextWidth)
-          const adjustment = diff * currentRatio
-          
-          newCurrentWidth = Math.max(panelMinWidth, Math.min(panelMaxWidth, newCurrentWidth + adjustment))
-          newNextWidth = totalBefore - newCurrentWidth
-          
-          // Final constraint check for next panel
-          newNextWidth = Math.max(nextPanelMinWidth, Math.min(nextPanelMaxWidth, newNextWidth))
-          newCurrentWidth = totalBefore - newNextWidth
+          // Adjust to maintain total width
+          if (newCurrentWidth === panelMinWidth) {
+            newNextWidth = totalWidth - newCurrentWidth
+          } else if (newNextWidth === nextPanelMinWidth) {
+            newCurrentWidth = totalWidth - newNextWidth
+          } else {
+            // Distribute the difference proportionally
+            const currentRatio = newCurrentWidth / totalAfter
+            newCurrentWidth += diff * currentRatio
+            newNextWidth = totalWidth - newCurrentWidth
+          }
         }
       }
       

@@ -8,14 +8,45 @@ import { cn } from '@/lib/utils'
 interface MarkdownPreviewProps {
   content: string
   className?: string
+  onTextSelect?: (text: string) => void
 }
 
-export default function MarkdownPreview({ content, className }: MarkdownPreviewProps) {
+export default function MarkdownPreview({ content, className, onTextSelect }: MarkdownPreviewProps) {
   const [mounted, setMounted] = useState(false)
+  const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Handle text selection
+  useEffect(() => {
+    if (!onTextSelect || !containerRef) return
+
+    const handleSelection = (e: MouseEvent | KeyboardEvent) => {
+      // Check if the selection is within our container
+      if (!containerRef.contains(e.target as Node)) return
+      
+      const selection = window.getSelection()
+      if (selection && selection.toString().trim()) {
+        // Verify the selection is actually within our container
+        const range = selection.getRangeAt(0)
+        if (containerRef.contains(range.commonAncestorContainer)) {
+          onTextSelect(selection.toString())
+        }
+      }
+    }
+
+    // Add event listener for mouseup to detect selection end
+    document.addEventListener('mouseup', handleSelection)
+    // Also listen for keyboard selection
+    document.addEventListener('keyup', handleSelection)
+
+    return () => {
+      document.removeEventListener('mouseup', handleSelection)
+      document.removeEventListener('keyup', handleSelection)
+    }
+  }, [onTextSelect, containerRef])
 
   if (!mounted) {
     return (
@@ -26,7 +57,7 @@ export default function MarkdownPreview({ content, className }: MarkdownPreviewP
   }
 
   return (
-    <div className={cn("h-full overflow-y-auto", className)}>
+    <div ref={setContainerRef} className={cn("h-full overflow-y-auto", className)}>
       <div className="prose prose-sm max-w-none p-6 break-words">
         <ReactMarkdown 
           remarkPlugins={[remarkGfm]}
