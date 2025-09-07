@@ -26,7 +26,8 @@
       "Bash(pkill:*)",
       "Bash(git checkout:*)",
       "Bash(pnpm dev:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []

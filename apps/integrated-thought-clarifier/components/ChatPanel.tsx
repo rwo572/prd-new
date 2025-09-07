@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import dynamic from 'next/dynamic'
 import { 
   MessageSquare, 
   Send, 
@@ -30,15 +29,12 @@ import {
   RotateCcw,
   MessageCircle
 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Message } from '@/types'
 import { ApiKeys } from '@/types'
 import { cn } from '@/lib/utils'
 import { generatePromptSuggestions, getQuickPromptSuggestions, PromptSuggestion } from '@/lib/prompt-suggestion-service'
-
-const MarkdownPreview = dynamic(() => import('./MarkdownPreview'), {
-  ssr: false,
-  loading: () => <div className="text-sm text-slate-500">Loading...</div>
-})
 
 interface ChatPanelProps {
   messages: Message[]
@@ -86,10 +82,8 @@ export default function ChatPanel({
   const [lastAssistantMessage, setLastAssistantMessage] = useState<Message | null>(null)
   const [lastUserPrompt, setLastUserPrompt] = useState<string>('')
   const [lastContext, setLastContext] = useState<{ type: 'full' | 'selection', content: string, selectionStart?: number, selectionEnd?: number } | undefined>()
-  const [lastSuggestionsFor, setLastSuggestionsFor] = useState<string>('') // Track what we generated suggestions for
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const suggestionsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -113,76 +107,80 @@ export default function ChatPanel({
 
   // Update context mode and generate suggestions when selection changes
   useEffect(() => {
-    // Clear any pending suggestion generation
-    if (suggestionsTimeoutRef.current) {
-      clearTimeout(suggestionsTimeoutRef.current)
-    }
-
-    // Determine what content to generate suggestions for
-    const contentForSuggestions = selectedText && selectedText.trim() 
-      ? selectedText 
-      : (editorContent && editorContent.trim().length > 100 ? editorContent.slice(0, 500) : '')
-    
-    // Only generate new suggestions if the content has changed significantly
-    if (contentForSuggestions && contentForSuggestions !== lastSuggestionsFor) {
-      // Update context mode based on selection
-      if (selectedText && selectedText.trim()) {
-        setContextMode('selection')
-        setShowContext(true)
-      }
+    if (selectedText && selectedText.trim()) {
+      setContextMode('selection')
+      setShowContext(true)
       
-      // Debounce the suggestion generation to avoid flickering
-      suggestionsTimeoutRef.current = setTimeout(() => {
-        setLoadingSuggestions(true)
-        setLastSuggestionsFor(contentForSuggestions)
-        
-        // Fetch AI-powered suggestions if available
-        if (apiKeys && (apiKeys.openai || apiKeys.anthropic)) {
-          generatePromptSuggestions(contentForSuggestions, apiKeys, editorContent)
-            .then(suggestions => {
-              setPromptSuggestions(suggestions.slice(0, 3))
-              setLoadingSuggestions(false)
-            })
-            .catch(error => {
-              console.error('Failed to generate suggestions:', error)
-              // Fall back to quick local suggestions on error
-              const quickSuggestions = selectedText && selectedText.trim()
-                ? getQuickPromptSuggestions(selectedText)
-                : [
-                    { icon: '🎯', label: 'Improve clarity', prompt: 'How can I make this PRD clearer and more actionable?' },
-                    { icon: '✅', label: 'Check completeness', prompt: 'What key sections or details are missing from this PRD?' },
-                    { icon: '📊', label: 'Add metrics', prompt: 'What success metrics and KPIs should I add to measure impact?' }
-                  ]
-              setPromptSuggestions(quickSuggestions.slice(0, 3))
-              setLoadingSuggestions(false)
-            })
-        } else {
-          // Use local suggestions if no API keys
-          const quickSuggestions = selectedText && selectedText.trim()
-            ? getQuickPromptSuggestions(selectedText)
-            : [
-                { icon: '🎯', label: 'Improve clarity', prompt: 'How can I make this PRD clearer and more actionable?' },
-                { icon: '✅', label: 'Check completeness', prompt: 'What key sections or details are missing from this PRD?' },
-                { icon: '📊', label: 'Add metrics', prompt: 'What success metrics and KPIs should I add to measure impact?' }
-              ]
-          setPromptSuggestions(quickSuggestions.slice(0, 3))
-          setLoadingSuggestions(false)
-        }
-      }, 800) // 800ms debounce delay to prevent flickering
-    } else if (!contentForSuggestions && lastSuggestionsFor) {
-      // Clear suggestions if no content
+      // Show loading state immediately
+      setLoadingSuggestions(true)
+      setPromptSuggestions([])
+      
+      // Fetch AI-powered suggestions if available
+      if (apiKeys && (apiKeys.openai || apiKeys.anthropic)) {
+        generatePromptSuggestions(selectedText, apiKeys, editorContent)
+          .then(suggestions => {
+            // Take up to 6 suggestions
+            setPromptSuggestions(suggestions.slice(0, 6))
+          })
+          .catch(error => {
+            console.error('Failed to generate suggestions:', error)
+            // Fall back to quick local suggestions on error
+            const quickSuggestions = getQuickPromptSuggestions(selectedText)
+            setPromptSuggestions(quickSuggestions.slice(0, 6))
+          })
+          .finally(() => {
+            setLoadingSuggestions(false)
+          })
+      } else {
+        // Use local suggestions if no API keys
+        const quickSuggestions = getQuickPromptSuggestions(selectedText)
+        setPromptSuggestions(quickSuggestions.slice(0, 6))
+        setLoadingSuggestions(false)
+      }
+    } else if (editorContent && editorContent.trim().length > 100) {
+      // Generate prompts for full document when no selection
+      setLoadingSuggestions(true)
+      setPromptSuggestions([])
+      
+      if (apiKeys && (apiKeys.openai || apiKeys.anthropic)) {
+        // Use first 500 chars of document for prompt generation
+        const contentPreview = editorContent.slice(0, 500)
+        generatePromptSuggestions(contentPreview, apiKeys, editorContent)
+          .then(suggestions => {
+            setPromptSuggestions(suggestions.slice(0, 6))
+          })
+          .catch(error => {
+            console.error('Failed to generate suggestions:', error)
+            // Default prompts for full document
+            setPromptSuggestions([
+              { icon: '🎯', label: 'Improve clarity', prompt: 'How can I make this PRD clearer and more actionable?' },
+              { icon: '✅', label: 'Check completeness', prompt: 'What key sections or details are missing from this PRD?' },
+              { icon: '📊', label: 'Add metrics', prompt: 'What success metrics and KPIs should I add to measure impact?' },
+              { icon: '👥', label: 'User stories', prompt: 'Help me write detailed user stories for the main features' },
+              { icon: '🔄', label: 'Technical spec', prompt: 'What technical requirements and architecture details are needed?' },
+              { icon: '🚀', label: 'MVP scope', prompt: 'How can I better define the MVP scope and phasing?' }
+            ])
+          })
+          .finally(() => {
+            setLoadingSuggestions(false)
+          })
+      } else {
+        // Default prompts when no API keys
+        setPromptSuggestions([
+          { icon: '🎯', label: 'Improve clarity', prompt: 'How can I make this PRD 10x clearer and more actionable?' },
+          { icon: '✅', label: 'Check completeness', prompt: 'What key sections or details are missing from this PRD?' },
+          { icon: '📊', label: 'Add metrics', prompt: 'What success metrics and KPIs should I add to measure impact?' },
+          { icon: '👥', label: 'User stories', prompt: 'Help me write detailed user stories for the main features' },
+          { icon: '🔄', label: 'Technical spec', prompt: 'What technical requirements and architecture details are needed?' },
+          { icon: '🚀', label: 'MVP scope', prompt: 'How can I better define the MVP scope and phasing?' }
+        ])
+        setLoadingSuggestions(false)
+      }
+    } else {
       setPromptSuggestions([])
       setLoadingSuggestions(false)
-      setLastSuggestionsFor('')
     }
-    
-    // Cleanup timeout on unmount or when dependencies change
-    return () => {
-      if (suggestionsTimeoutRef.current) {
-        clearTimeout(suggestionsTimeoutRef.current)
-      }
-    }
-  }, [selectedText, apiKeys, editorContent, lastSuggestionsFor])
+  }, [selectedText, apiKeys, editorContent])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -243,76 +241,77 @@ export default function ChatPanel({
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-white">
-      {/* Top Control Bar */}
+      {/* Primary Control Row */}
       <div className="px-3 py-2 border-b border-slate-200 bg-slate-50/50">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleQuickAction('full')}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200",
-              contextMode === 'full' 
-                ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-sm" 
-                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-            )}
-          >
-            <FileText className="h-3 w-3" />
-            <span>Entire PRD</span>
-          </button>
-          
-          <button
-            onClick={() => handleQuickAction('selection')}
-            disabled={!selectedText}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200",
-              contextMode === 'selection' 
-                ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-sm" 
-                : selectedText
-                  ? "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
-            )}
-          >
-            <Type className="h-3 w-3" />
-            <span>Selected Text</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleQuickAction('full')}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200",
+                contextMode === 'full' 
+                  ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-sm" 
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              <FileText className="h-3 w-3" />
+              <span>Entire PRD</span>
+            </button>
+            
+            <button
+              onClick={() => handleQuickAction('selection')}
+              disabled={!selectedText}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200",
+                contextMode === 'selection' 
+                  ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-sm" 
+                  : selectedText
+                    ? "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
+              )}
+            >
+              <Type className="h-3 w-3" />
+              <span>Selected Text</span>
+            </button>
 
-          {/* Action buttons - Pushed to the right */}
-          <div className="flex-1 flex items-center justify-end gap-2">
-            {isGenerating && (
-              <button
-                onClick={() => window.location.reload()}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-all duration-200"
-                title="Force stop generation"
-              >
-                <X className="h-3 w-3" />
-                <span>Stop</span>
-              </button>
-            )}
-            {contextMode !== 'none' && (
-              <button
-                onClick={() => {
-                  setContextMode('none')
-                  setShowContext(false)
-                }}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-all duration-200"
-                title="Clear context"
-              >
-                <X className="h-3 w-3" />
-                <span>Clear</span>
-              </button>
-            )}
-            {messages.length > 0 && onClearChat && (
-              <button
-                onClick={onClearChat}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-all duration-200"
-                title="Clear all messages"
-              >
-                <Eraser className="h-3 w-3" />
-                <span>Clear Chat</span>
-              </button>
-            )}
+
+            {/* Action buttons - Pushed to the right */}
+            <div className="flex-1 flex items-center justify-end gap-2">
+              {isGenerating && (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-all duration-200"
+                  title="Force stop generation"
+                >
+                  <X className="h-3 w-3" />
+                  <span>Stop</span>
+                </button>
+              )}
+              {contextMode !== 'none' && (
+                <button
+                  onClick={() => {
+                    setContextMode('none')
+                    setShowContext(false)
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-all duration-200"
+                  title="Clear context"
+                >
+                  <X className="h-3 w-3" />
+                  <span>Clear</span>
+                </button>
+              )}
+              {messages.length > 0 && onClearChat && (
+                <button
+                  onClick={onClearChat}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-all duration-200"
+                  title="Clear all messages"
+                >
+                  <Eraser className="h-3 w-3" />
+                  <span>Clear Chat</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -414,39 +413,51 @@ export default function ChatPanel({
                     <span className="text-xs font-semibold text-emerald-700">📝 Markdown Changes</span>
                   </div>
                 )}
-                {/* Render markdown for both analysis and markdown messages */}
-                {(message.isImprovements || message.isMarkdown) ? (
-                  <div className="markdown-content">
-                    <MarkdownPreview 
-                      content={(() => {
-                        let content = message.content
-                        // Strip markdown code blocks for markdown messages
-                        if (message.isMarkdown) {
-                          // Remove ```markdown from the beginning
-                          content = content.replace(/^```markdown\n?/, '')
-                          // Remove ``` from the end
-                          content = content.replace(/\n?```$/, '')
-                          // Also handle other code block languages
-                          content = content.replace(/^```[a-z]*\n?/, '')
-                          // Remove "## Suggested Markdown" header if present
-                          if (content.includes('## Suggested Markdown')) {
-                            content = content.split('## Suggested Markdown')[1]?.trim() || content
-                          }
-                        }
-                        return content
-                      })()} 
-                      className={cn(
-                        "text-sm",
-                        message.isImprovements && "prose-amber",
-                        message.isMarkdown && "prose-emerald"
-                      )}
-                    />
-                  </div>
-                ) : (
-                  <div className="text-sm whitespace-pre-wrap break-words">
-                    {message.content}
-                  </div>
-                )}
+                <div className={cn(
+                  "text-sm",
+                  (message.isImprovements || message.isMarkdown) && "prose prose-sm max-w-none",
+                  message.isImprovements && "prose-amber",
+                  message.isMarkdown && "prose-emerald"
+                )}>
+                  {(message.isImprovements || message.isMarkdown) ? (
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // Customize markdown components for better styling
+                        h1: ({children}) => <h1 className="text-lg font-bold mt-3 mb-2">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-base font-semibold mt-3 mb-2">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>,
+                        p: ({children}) => <p className="mb-2">{children}</p>,
+                        ul: ({children}) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
+                        ol: ({children}) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
+                        li: ({children}) => <li className="text-sm">{children}</li>,
+                        code: ({inline, children}) => 
+                          inline ? (
+                            <code className="px-1 py-0.5 bg-slate-100 rounded text-xs font-mono">{children}</code>
+                          ) : (
+                            <code className="block p-3 bg-slate-100 rounded text-xs font-mono overflow-x-auto">{children}</code>
+                          ),
+                        pre: ({children}) => <pre className="mb-2">{children}</pre>,
+                        blockquote: ({children}) => (
+                          <blockquote className="border-l-4 border-slate-300 pl-3 italic my-2">{children}</blockquote>
+                        ),
+                        strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                        em: ({children}) => <em className="italic">{children}</em>,
+                        a: ({href, children}) => (
+                          <a href={href} className="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <div className="whitespace-pre-wrap break-words">
+                      {message.content}
+                    </div>
+                  )}
+                </div>
                 
                 {/* Interactive actions only for markdown messages */}
                 {message.role === 'assistant' && message.isMarkdown && message === lastAssistantMessage && !isGenerating && (

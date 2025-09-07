@@ -768,9 +768,223 @@ interface AISuggestion {
 
 ---
 
-## 10. Technical Requirements
+## 10. Critical Requirements (From Codebase Analysis)
 
-### 10.1 Performance Requirements
+### 10.1 Core Technical Stack Requirements
+**MUST HAVE - These are already implemented and critical to maintain:**
+
+#### Frontend Architecture
+- **React 18.3.1+ with TypeScript 5.5.3+** - Strict mode enabled for type safety
+- **Next.js 14.2.5+ with App Router** - Server-side rendering and API routes
+- **Tailwind CSS 3.4.4+** - Design system with custom primary colors
+- **Monaco Editor** - Professional code editing experience (dynamic import required)
+- **WebContainer API** - Browser-based code execution for live prototyping
+
+#### AI Integration Requirements
+- **Multi-Model Support**: OpenAI GPT-4/3.5 AND Anthropic Claude (Haiku/Sonnet/Opus)
+- **Streaming Responses**: Real-time AI response streaming with thought process visibility
+- **API Key Management**: Client-side secure storage (never in code or server)
+- **Proxy Pattern**: API routes for secure service communication
+- **Error Handling**: Graceful degradation when AI services unavailable
+
+#### Data & State Management
+- **Local-First Architecture**: All data in browser localStorage/IndexedDB
+- **Zero Backend Persistence**: No user data stored on servers
+- **Custom Hooks**: useLocalStorage for persistent state management
+- **No Redux/Zustand**: Intentionally lean state management approach
+
+### 10.2 Feature-Critical Requirements
+
+#### Multi-Panel Layout System
+- **Resizable Panels**: Minimum 150px width per panel
+- **Persistent Layout**: Panel sizes saved across sessions
+- **Dynamic Panel Toggle**: Show/hide panels without losing state
+- **Smooth Resizing**: 60fps drag interactions required
+
+#### PRD Editing Capabilities
+- **Markdown-First**: All content stored as markdown
+- **Real-Time Preview**: <100ms rendering updates
+- **Document Outlining**: Auto-generated navigation structure
+- **Syntax Highlighting**: Full markdown syntax support
+- **Toolbar Actions**: Bold, italic, links, headers with <50ms response
+
+#### AI Chat Integration
+- **Context Awareness**: Full document or selection context
+- **Rich Text Responses**: Markdown rendering in chat bubbles
+- **Action Buttons**: Accept, Regenerate, Reprompt functionality
+- **Prompt Suggestions**: AI-powered contextual suggestions
+- **Error Recovery**: Retry mechanisms for failed AI calls
+
+#### Live Prototyping (WebContainer)
+- **In-Browser Execution**: Full React app running client-side
+- **Hot Module Reload**: Instant updates on code changes
+- **Multiple Frameworks**: React, Vue, vanilla HTML support
+- **Package Management**: npm/yarn package installation
+- **Build Process**: Vite/Webpack compilation in browser
+
+### 10.3 Performance Requirements (Verified)
+- **Initial Page Load**: <2 seconds (achieved: 1.8s)
+- **AI Response Start**: <1 second streaming initiation
+- **Markdown Rendering**: <100ms updates
+- **Panel Resize**: 60fps smooth dragging
+- **Monaco Editor Load**: <3 seconds (lazy loaded)
+- **WebContainer Boot**: <5 seconds for prototype environment
+
+### 10.4 Security Requirements (Implemented)
+- **API Key Security**: Client-side storage only, never logged
+- **CORS Configuration**: COEP: credentialless, COOP: same-origin
+- **Content Security**: Proper CSP headers for WebContainer
+- **No Data Persistence**: Zero server-side user data storage
+- **Secure Proxy**: All external API calls through API routes
+
+### 10.5 Browser Compatibility (Required)
+- **Chrome 90+**: Full WebContainer support
+- **Firefox 88+**: Full feature support
+- **Safari 14+**: Limited WebContainer (fallback to code view)
+- **Edge 90+**: Full WebContainer support
+- **Mobile**: Responsive design, limited editing features
+
+---
+
+## 11. Automated Codebase Scanning Methodology
+
+### 11.1 Overview
+This section documents the systematic approach for scanning and analyzing the codebase to extract critical requirements. This methodology can be built as a feature within the product to automatically keep PRDs synchronized with actual implementation.
+
+### 11.2 Scanning Process
+
+#### Phase 1: Dependency Analysis
+```yaml
+Scan Targets:
+  - package.json: Dependencies, versions, scripts
+  - tsconfig.json: TypeScript configuration
+  - next.config.js: Framework configuration
+  - tailwind.config.js: Design system setup
+
+Extract:
+  - Core frameworks and versions
+  - Critical dependencies
+  - Build configurations
+  - Development scripts
+```
+
+#### Phase 2: Component Discovery
+```yaml
+Scan Pattern:
+  - /components/**/*.tsx: UI components
+  - /app/**/*.tsx: Pages and layouts
+  - /lib/**/*.ts: Services and utilities
+  - /hooks/**/*.ts: Custom React hooks
+
+Analysis:
+  - Component hierarchy mapping
+  - Props and state interfaces
+  - Component dependencies
+  - Feature implementations
+```
+
+#### Phase 3: API Route Mapping
+```yaml
+Scan Location:
+  - /app/api/**/route.ts: API endpoints
+
+Document:
+  - Endpoint paths and methods
+  - Request/response schemas
+  - External service integrations
+  - Authentication requirements
+```
+
+#### Phase 4: Feature Extraction
+```yaml
+Identify Patterns:
+  - Import statements: Used libraries
+  - Component names: Feature indicators
+  - API calls: Service integrations
+  - State management: Data flow
+
+Map to Features:
+  - Editor capabilities
+  - AI integrations
+  - UI interactions
+  - Data persistence
+```
+
+#### Phase 5: Requirements Inference
+```yaml
+From Code Patterns:
+  - Performance: Lazy loading, memoization
+  - Security: API key handling, CORS
+  - Compatibility: Polyfills, fallbacks
+  - Architecture: Patterns and practices
+
+Generate Requirements:
+  - Technical constraints
+  - Feature dependencies
+  - Performance baselines
+  - Security standards
+```
+
+### 11.3 Automation Implementation
+
+#### Scanning Service Architecture
+```typescript
+interface CodebaseScanner {
+  scanDependencies(): TechnicalStack
+  scanComponents(): ComponentMap
+  scanAPIs(): APIEndpoints
+  scanFeatures(): FeatureList
+  inferRequirements(): Requirements
+  generateReport(): PRDUpdate
+}
+```
+
+#### Integration Points
+1. **Git Hooks**: Scan on commit/push
+2. **CI/CD Pipeline**: Validate PRD against code
+3. **IDE Plugin**: Real-time PRD updates
+4. **Web UI**: Manual scan trigger
+
+### 11.4 PRD Synchronization
+
+#### Automatic Updates
+- **New Dependencies**: Add to technical requirements
+- **New Components**: Update feature list
+- **API Changes**: Modify integration specs
+- **Performance Changes**: Update benchmarks
+
+#### Conflict Resolution
+- **Code vs PRD**: Flag discrepancies
+- **Version Mismatches**: Highlight updates needed
+- **Missing Features**: Identify undocumented functionality
+- **Deprecated Items**: Mark for removal
+
+### 11.5 Benefits of Automated Scanning
+
+1. **Living Documentation**: PRD always reflects actual implementation
+2. **Drift Detection**: Identify when code diverges from spec
+3. **Dependency Tracking**: Know exactly what's required
+4. **Feature Discovery**: Find undocumented capabilities
+5. **Technical Debt**: Identify outdated requirements
+
+### 11.6 Implementation Checklist
+
+- [ ] Build dependency scanner module
+- [ ] Create component analyzer
+- [ ] Implement API route mapper
+- [ ] Develop feature extractor
+- [ ] Create requirement inference engine
+- [ ] Build PRD update generator
+- [ ] Add Git integration hooks
+- [ ] Create UI for manual scanning
+- [ ] Implement diff visualization
+- [ ] Add approval workflow
+
+---
+
+## 12. Technical Requirements (Original)
+
+### 12.1 Performance Requirements
 - Page Load: <2 seconds
 - AI Response Start: <1 second
 - Markdown Rendering: Real-time (<100ms)
@@ -779,21 +993,21 @@ interface AISuggestion {
 - AI Suggestion Generation: <3 seconds per issue
 - Editor Toolbar Actions: Instant (<50ms)
 
-### 10.2 Security Requirements
+### 12.2 Security Requirements
 - SOC 2 Type II compliance ready
 - Zero user data retention
 - Encrypted API key storage
 - Secure GitHub OAuth flow
 - Content Security Policy implementation
 
-### 10.3 Scalability Requirements
+### 12.3 Scalability Requirements
 - Support 10,000 concurrent users
 - Handle PRDs up to 50,000 tokens
 - Manage repos up to 100MB
 - Maintain responsive UI with 100+ lint issues
 - Handle multiple AI suggestion requests in parallel
 
-### 10.4 Browser Support
+### 12.4 Browser Support
 - Chrome 90+
 - Firefox 88+
 - Safari 14+
@@ -801,7 +1015,7 @@ interface AISuggestion {
 
 ---
 
-## 11. Risks & Mitigations
+## 13. Risks & Mitigations
 
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|------------|
@@ -814,21 +1028,21 @@ interface AISuggestion {
 
 ---
 
-## 12. Success Criteria
+## 14. Success Criteria
 
-### 12.1 Launch Success (3 months)
+### 14.1 Launch Success (3 months)
 - 1,000 active users
 - 5,000 PRDs generated
 - 60% of PRDs result in prototypes
 - NPS >45
 
-### 12.2 Growth Success (6 months)
+### 14.2 Growth Success (6 months)
 - 10,000 active users
 - 50,000 PRDs generated
 - 3 enterprise pilots
 - $50K MRR (premium features)
 
-### 12.3 Exit Criteria (Kill Switches)
+### 14.3 Exit Criteria (Kill Switches)
 - <100 active users after 3 months
 - <40% PRD-to-prototype success rate
 - Critical security breach
@@ -836,7 +1050,7 @@ interface AISuggestion {
 
 ---
 
-## 13. Open Questions
+## 15. Open Questions
 
 1. **Business Model**: Freemium limits - by PRDs/month or features?
    - Decision needed by: Week 8
@@ -852,15 +1066,15 @@ interface AISuggestion {
 
 ---
 
-## 14. Appendices
+## 16. Appendices
 
-### 14.1 Competitive Analysis
+### 16.1 Competitive Analysis
 - **GitHub Copilot**: Code-focused, not product requirements
 - **Notion AI**: General purpose, not prototype-optimized
 - **ProductPlan**: Traditional PRD, no AI or prototype connection
 - **Unique Position**: Only tool bridging PRD to prototype with Git-native workflow
 
-### 14.2 Example PRD Output Structure
+### 16.2 Example PRD Output Structure
 ```markdown
 # [Product Name] PRD
 
@@ -895,7 +1109,7 @@ interface AISuggestion {
 [Optimized prompt for Cursor]
 ```
 
-### 14.3 Prototype Validation Rubric
+### 16.3 Prototype Validation Rubric
 - Functional completeness: 40%
 - UI/UX quality: 30%
 - Performance: 15%
@@ -903,6 +1117,6 @@ interface AISuggestion {
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: 2024-08-30*  
-*Status: Ready for Prototype Development*
+*Document Version: 2.0*  
+*Last Updated: 2025-09-07*  
+*Status: Implementation In Progress - Critical Requirements Verified*

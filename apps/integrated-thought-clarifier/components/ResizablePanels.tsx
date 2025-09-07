@@ -56,6 +56,7 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
 
   const handleMouseDown = (e: React.MouseEvent, panelId: string) => {
     e.preventDefault()
+    e.stopPropagation() // Prevent event bubbling
     setIsDragging(panelId)
     setStartX(e.clientX)
     setStartWidths({ ...widths })
@@ -93,50 +94,49 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
       let newCurrentWidth = currentWidth + deltaX
       let newNextWidth = nextWidth - deltaX
       
-      // Special handling when resizing with chat panel
-      if (nextPanel.id === 'chat' || panel.id === 'chat') {
-        // Chat panel should be resizable between 40-60% of container
-        const minChatPercent = 0.4
-        const maxChatPercent = 0.6
+      
+      // Special handling when resizing between preview and chat panels
+      if ((panel.id === 'preview' && nextPanel.id === 'chat') || 
+          (panel.id === 'chat' && nextPanel.id === 'preview')) {
+        // Very minimal constraints to allow maximum flexibility
+        const absoluteMinWidth = 150 // Absolute minimum for any panel to remain usable
         
-        if (nextPanel.id === 'chat') {
-          // Resizing the preview panel (dragging the bar affects chat size)
-          // Calculate what percentage the chat panel would be
-          const chatPercent = newNextWidth / containerWidth
-          
-          // Allow chat to be between 40-60% of container
-          if (chatPercent < minChatPercent) {
-            // Chat is too small, set it to minimum
-            newNextWidth = containerWidth * minChatPercent
-            newCurrentWidth = totalWidth - newNextWidth
-          } else if (chatPercent > maxChatPercent) {
-            // Chat is too large, set it to maximum
-            newNextWidth = containerWidth * maxChatPercent
-            newCurrentWidth = totalWidth - newNextWidth
-          }
-          
-          // Don't let the preview panel get too small
-          const minPreviewWidth = 200
-          if (newCurrentWidth < minPreviewWidth) {
-            newCurrentWidth = minPreviewWidth
+        // Only apply absolute minimum constraints
+        if (newCurrentWidth < absoluteMinWidth) {
+          newCurrentWidth = absoluteMinWidth
+          newNextWidth = totalWidth - newCurrentWidth
+        }
+        
+        if (newNextWidth < absoluteMinWidth) {
+          newNextWidth = absoluteMinWidth
+          newCurrentWidth = totalWidth - newNextWidth
+        }
+      } else if (nextPanel.id === 'chat' || panel.id === 'chat') {
+        // Chat with other panels (not preview) - use normal constraints
+        const panelMinWidth = panel.minWidth || 200
+        const panelMaxWidth = panel.maxWidth || containerWidth * 0.8
+        const nextPanelMinWidth = nextPanel.minWidth || 200
+        const nextPanelMaxWidth = nextPanel.maxWidth || containerWidth * 0.8
+        
+        // Apply constraints
+        newCurrentWidth = Math.max(panelMinWidth, Math.min(panelMaxWidth, newCurrentWidth))
+        newNextWidth = Math.max(nextPanelMinWidth, Math.min(nextPanelMaxWidth, newNextWidth))
+        
+        // Ensure total width is preserved
+        const totalAfter = newCurrentWidth + newNextWidth
+        const diff = totalWidth - totalAfter
+        
+        if (Math.abs(diff) > 0.1) {
+          // Adjust to maintain total width
+          if (newCurrentWidth === panelMinWidth) {
             newNextWidth = totalWidth - newCurrentWidth
-          }
-        } else if (panel.id === 'chat') {
-          // Resizing chat from its right edge (if there's a panel after it)
-          const chatPercent = newCurrentWidth / containerWidth
-          
-          if (chatPercent < minChatPercent) {
-            newCurrentWidth = containerWidth * minChatPercent
-            newNextWidth = totalWidth - newCurrentWidth
-          } else if (chatPercent > maxChatPercent) {
-            newCurrentWidth = containerWidth * maxChatPercent
-            newNextWidth = totalWidth - newCurrentWidth
-          }
-          
-          // Don't let the panel after chat get too small
-          if (newNextWidth < 200) {
-            newNextWidth = 200
+          } else if (newNextWidth === nextPanelMinWidth) {
             newCurrentWidth = totalWidth - newNextWidth
+          } else {
+            // Distribute the difference proportionally
+            const currentRatio = newCurrentWidth / totalAfter
+            newCurrentWidth += diff * currentRatio
+            newNextWidth = totalWidth - newCurrentWidth
           }
         }
       } else {
@@ -228,11 +228,18 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
                 )}
                 onMouseDown={(e) => handleMouseDown(e, panel.id)}
                 title="Drag to resize"
+                style={{ touchAction: 'none' }} // Prevent touch scrolling interference
               >
                 {/* Resize handle visual indicator with larger hit area */}
-                <div className="absolute inset-0 -left-2 -right-2 z-10" />
+                <div 
+                  className="absolute inset-0 -left-2 -right-2 z-10" 
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
+                    handleMouseDown(e, panel.id)
+                  }}
+                />
                 {/* Grip dots */}
-                <div className="flex flex-col gap-0.5 opacity-40 group-hover:opacity-70 transition-opacity">
+                <div className="flex flex-col gap-0.5 opacity-40 group-hover:opacity-70 transition-opacity pointer-events-none">
                   <div className="w-1 h-1 bg-slate-600 rounded-full" />
                   <div className="w-1 h-1 bg-slate-600 rounded-full" />
                   <div className="w-1 h-1 bg-slate-600 rounded-full" />
