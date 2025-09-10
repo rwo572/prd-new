@@ -250,7 +250,7 @@ export default function PrototypeChat({
       let assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: '',
+        content: 'Generating response...',
         timestamp: new Date()
       }
 
@@ -286,14 +286,8 @@ export default function PrototypeChat({
                 }
                 
                 if (content) {
-                  assistantMessage.content += content
                   fullResponse += content
-                  setMessages(prev => 
-                    prev.map(m => m.id === assistantMessage.id 
-                      ? { ...m, content: assistantMessage.content }
-                      : m
-                    )
-                  )
+                  // Don't update the displayed message yet - we'll clean it after streaming
                 }
               } catch (e) {
                 // Skip invalid JSON
@@ -305,10 +299,11 @@ export default function PrototypeChat({
         
         // Extract code changes from the response
         const changes = extractCodeChanges(fullResponse)
+        
+        // Clean the content by removing code blocks
+        let cleanedContent = fullResponse
+        
         if (changes.length > 0) {
-          // Remove code blocks from the displayed message
-          let cleanedContent = assistantMessage.content
-          
           // Remove all code blocks that have file paths
           cleanedContent = cleanedContent.replace(/```(?:jsx|tsx|js|ts|css|html|json)\s+[^\n]+\n[\s\S]*?```/g, '')
           
@@ -325,16 +320,24 @@ export default function PrototypeChat({
           assistantMessage.codeChanges = changes
           assistantMessage.status = 'pending'
           
-          setMessages(prev => 
-            prev.map(m => m.id === assistantMessage.id 
-              ? { ...m, content: cleanedContent, codeChanges: changes, status: 'pending' }
-              : m
-            )
-          )
-          
           // Set pending changes for user confirmation
           setPendingChanges(changes)
+        } else {
+          // No code changes, show the full response
+          assistantMessage.content = fullResponse
         }
+        
+        // Update the message with final content
+        setMessages(prev => 
+          prev.map(m => m.id === assistantMessage.id 
+            ? { ...m, 
+                content: assistantMessage.content, 
+                codeChanges: assistantMessage.codeChanges, 
+                status: assistantMessage.status 
+              }
+            : m
+          )
+        )
       }
     } catch (error) {
       console.error('Chat error:', error)
