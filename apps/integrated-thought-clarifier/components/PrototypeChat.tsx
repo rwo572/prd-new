@@ -1,14 +1,24 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, MessageSquare, X, Minimize2, Maximize2, Bot, User, Check, Code2 } from 'lucide-react'
+import { Send, MessageSquare, X, Minimize2, Maximize2, Bot, User, Check, Code2, FileEdit, AlertCircle, Loader2 } from 'lucide-react'
 
 interface Message {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   content: string
   timestamp: Date
   codeBlock?: string
+  codeChanges?: CodeChange[]
+  status?: 'pending' | 'applied' | 'rejected'
+}
+
+interface CodeChange {
+  type: 'create' | 'update' | 'delete'
+  filePath: string
+  oldContent?: string
+  newContent?: string
+  description?: string
 }
 
 interface PrototypeChatProps {
@@ -17,6 +27,8 @@ interface PrototypeChatProps {
   prototypeCode?: string
   projectName?: string
   onCodeUpdate?: (newCode: string) => void
+  onFileSystemUpdate?: (changes: CodeChange[]) => Promise<void>
+  currentFiles?: { [path: string]: string }
 }
 
 export default function PrototypeChat({ 
@@ -24,9 +36,12 @@ export default function PrototypeChat({
   modelId = 'claude-3-5-sonnet-20241022',
   prototypeCode,
   projectName,
-  onCodeUpdate
+  onCodeUpdate,
+  onFileSystemUpdate,
+  currentFiles = {}
 }: PrototypeChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
+  const [pendingChanges, setPendingChanges] = useState<CodeChange[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
@@ -41,6 +56,88 @@ export default function PrototypeChat({
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  const extractCodeChanges = (content: string): CodeChange[] => {
+    const changes: CodeChange[] = []
+    
+    // Extract file updates with specific file paths
+    const fileBlockRegex = /```(?:jsx|tsx|js|ts|css|html|json)\s+([^\n]+)\n([\s\S]*?)```/g
+    let match
+    
+    while ((match = fileBlockRegex.exec(content)) !== null) {
+      const filePath = match[1].trim()
+      const newContent = match[2]
+      
+      changes.push({
+        type: currentFiles[filePath] ? 'update' : 'create',
+        filePath,
+        oldContent: currentFiles[filePath],
+        newContent,
+        description: `${currentFiles[filePath] ? 'Update' : 'Create'} ${filePath}`
+      })
+    }
+    
+    // If no specific file paths, check for main App.jsx update
+    if (changes.length === 0) {
+      const codeMatch = content.match(/```(?:jsx|tsx|js|ts)\n([\s\S]*?)```/)
+      if (codeMatch && codeMatch[1]) {
+        changes.push({
+          type: 'update',
+          filePath: 'src/App.jsx',
+          oldContent: prototypeCode,
+          newContent: codeMatch[1].trim(),
+          description: 'Update main application code'
+        })
+      }
+    }
+    
+    return changes
+  }
+
+  const applyChanges = async () => {
+    if (pendingChanges.length === 0) return
+    
+    setIsApplyingCode(true)
+    try {
+      if (onFileSystemUpdate && pendingChanges.some(c => c.filePath !== 'src/App.jsx')) {
+        // Apply file system changes
+        await onFileSystemUpdate(pendingChanges)
+      } else if (onCodeUpdate) {
+        // Apply single App.jsx update (backward compatibility)
+        const appChange = pendingChanges.find(c => c.filePath === 'src/App.jsx')
+        if (appChange?.newContent) {
+          onCodeUpdate(appChange.newContent)
+        }
+      }
+      
+      // Update message status
+      setMessages(prev => prev.map(msg => 
+        msg.codeChanges?.length ? { ...msg, status: 'applied' } : msg
+      ))
+      
+      // Add success message
+      const successMessage: Message = {
+        id: Date.now().toString(),
+        role: 'system',
+        content: `✅ Successfully applied ${pendingChanges.length} change${pendingChanges.length > 1 ? 's' : ''}!`,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, successMessage])
+      
+      setPendingChanges([])
+    } catch (error) {
+      console.error('Error applying changes:', error)
+    } finally {
+      setIsApplyingCode(false)
+    }
+  }
+
+  const rejectChanges = () => {
+    setPendingChanges([])
+    setMessages(prev => prev.map(msg => 
+      msg.codeChanges?.length ? { ...msg, status: 'rejected' } : msg
+    ))
+  }
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
@@ -60,17 +157,22 @@ export default function PrototypeChat({
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
+    setPendingChanges([])
 
     try {
-      // Include full prototype code for context
-      const context = prototypeCode 
-        ? `Current prototype code:\n\`\`\`jsx\n${prototypeCode}\n\`\`\`\n\n`
-        : ''
+      // Build context with current files
+      const filesContext = Object.entries(currentFiles).length > 0
+        ? Object.entries(currentFiles)
+            .map(([path, content]) => `File: ${path}\n\`\`\`jsx\n${content}\n\`\`\``)
+            .join('\n\n')
+        : prototypeCode 
+          ? `Current prototype code:\n\`\`\`jsx\n${prototypeCode}\n\`\`\`\n\n`
+          : ''
       
       const systemPrompt = `You are a React prototype code generator using shadcn/ui components. Project: "${projectName || 'Untitled'}". 
         
         Current code:
-        ${context}
+        ${filesContext}
         
         AVAILABLE SHADCN/UI COMPONENTS (in src/components/ui/):
         - Button: import { Button } from './components/ui/button'
@@ -92,8 +194,9 @@ export default function PrototypeChat({
         2. Use the exact import paths shown above (./components/ui/button, etc.)
         3. Apply Tailwind classes for additional styling
         4. Create modern, polished UIs with proper spacing and shadows
-        5. Provide COMPLETE App.jsx code in \`\`\`jsx blocks
-        6. Include ALL necessary imports
+        5. When creating new files, specify the path after the code fence: \`\`\`jsx src/components/NewComponent.jsx
+        6. Provide COMPLETE file contents, not snippets
+        7. Include ALL necessary imports
         
         EXAMPLE STRUCTURE:
         import React, { useState } from 'react'
@@ -202,33 +305,22 @@ export default function PrototypeChat({
           }
         }
         
-        // Check if the response contains code and automatically apply it
-        const codeMatch = fullResponse.match(/```jsx\n([\s\S]*?)```/)
-        if (codeMatch && codeMatch[1] && onCodeUpdate) {
-          // Extract and automatically apply the code
-          const newCode = codeMatch[1].trim()
+        // Extract code changes from the response
+        const changes = extractCodeChanges(fullResponse)
+        if (changes.length > 0) {
+          // Update the assistant message with code changes
+          assistantMessage.codeChanges = changes
+          assistantMessage.status = 'pending'
           
-          // Show applying indicator
-          setIsApplyingCode(true)
-          
-          // Small delay to show the applying state
-          setTimeout(() => {
-            // Automatically apply the code changes
-            onCodeUpdate(newCode)
-            setIsApplyingCode(false)
-            
-            // Update the message to show that code was applied
-            setMessages(prev => 
-              prev.map(m => m.id === assistantMessage.id 
-                ? { 
-                    ...m, 
-                    content: assistantMessage.content + '\n\n✅ Code automatically applied to your prototype!',
-                    codeBlock: newCode
-                  }
-                : m
-              )
+          setMessages(prev => 
+            prev.map(m => m.id === assistantMessage.id 
+              ? { ...m, codeChanges: changes, status: 'pending' }
+              : m
             )
-          }, 500)
+          )
+          
+          // Set pending changes for user confirmation
+          setPendingChanges(changes)
         }
       }
     } catch (error) {
@@ -301,6 +393,57 @@ export default function PrototypeChat({
         </button>
       </div>
 
+      {/* Pending Changes Bar */}
+      {pendingChanges.length > 0 && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="text-amber-600" />
+              <span className="text-sm font-medium text-amber-900">
+                {pendingChanges.length} pending change{pendingChanges.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={applyChanges}
+                disabled={isApplyingCode}
+                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+              >
+                {isApplyingCode ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} />
+                    Apply Changes
+                  </>
+                )}
+              </button>
+              <button
+                onClick={rejectChanges}
+                disabled={isApplyingCode}
+                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+              >
+                <X size={14} />
+                Reject
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 space-y-1">
+            {pendingChanges.map((change, idx) => (
+              <div key={idx} className="text-xs text-amber-700 flex items-center gap-2">
+                <FileEdit size={12} />
+                <span>
+                  {change.type === 'create' ? 'Create' : change.type === 'update' ? 'Update' : 'Delete'}: {change.filePath}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
@@ -311,20 +454,53 @@ export default function PrototypeChat({
           </div>
         ) : (
           messages.map(message => (
-            <div key={message.id} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
+            <div key={message.id} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : ''} ${message.role === 'system' ? 'justify-center' : ''}`}>
               {message.role === 'assistant' && (
                 <div className="flex-shrink-0 w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center">
                   <Bot size={16} className="text-purple-600" />
                 </div>
               )}
-              <div className={`max-w-[80%]`}>
+              <div className={`${message.role === 'system' ? 'w-full' : 'max-w-[80%]'}`}>
                 <div className={`rounded-lg px-3 py-2 ${
                   message.role === 'user' 
                     ? 'bg-purple-600 text-white' 
+                    : message.role === 'system'
+                    ? 'bg-green-50 text-green-800 border border-green-200 text-center'
                     : 'bg-gray-100 text-gray-800'
                 }`}>
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 </div>
+                
+                {/* Show code changes if present */}
+                {message.codeChanges && message.codeChanges.length > 0 && (
+                  <div className="mt-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Code2 size={14} className="text-gray-600" />
+                      <span className="text-xs font-medium text-gray-600">
+                        Code Changes
+                        {message.status && (
+                          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                            message.status === 'applied' ? 'bg-green-100 text-green-700' :
+                            message.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {message.status === 'applied' ? '✅ Applied' :
+                             message.status === 'rejected' ? '❌ Rejected' :
+                             '⏳ Pending'}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {message.codeChanges.map((change, idx) => (
+                        <div key={idx} className="text-xs text-gray-600 flex items-center gap-1">
+                          <FileEdit size={10} />
+                          <span>{change.description || `${change.type} ${change.filePath}`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               {message.role === 'user' && (
                 <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">

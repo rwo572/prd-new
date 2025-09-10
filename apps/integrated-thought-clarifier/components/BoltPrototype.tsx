@@ -884,6 +884,25 @@ export default function BoltPrototype({
       content: files["index.html"].file.contents,
     },
   ]);
+  
+  // Helper function to get all files from the file tree
+  const getCurrentFiles = (): { [path: string]: string } => {
+    const files: { [path: string]: string } = {};
+    
+    const traverse = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        if (node.type === 'file' && node.content) {
+          files[node.path] = node.content;
+        }
+        if (node.children) {
+          traverse(node.children);
+        }
+      });
+    };
+    
+    traverse(fileTree);
+    return files;
+  };
 
   // Load saved preferences from localStorage after mount
   useEffect(() => {
@@ -2295,6 +2314,7 @@ export default App`;
                 modelId={modelId}
                 prototypeCode={fileContent}
                 projectName={projectName}
+                currentFiles={getCurrentFiles()}
                 onCodeUpdate={async (newCode) => {
                   // Update the code in the editor and WebContainer
                   setFileContent(newCode);
@@ -2336,6 +2356,121 @@ export default App`;
                         `❌ Error updating code: ${error}`,
                       ]);
                     }
+                  }
+                }}
+                onFileSystemUpdate={async (changes) => {
+                  if (!webcontainerInstance) return;
+                  
+                  try {
+                    for (const change of changes) {
+                      if (change.type === 'create' || change.type === 'update') {
+                        // Ensure parent directories exist
+                        const pathParts = change.filePath.split('/');
+                        const fileName = pathParts.pop();
+                        const dirPath = pathParts.join('/');
+                        
+                        if (dirPath) {
+                          try {
+                            await webcontainerInstance.fs.mkdir(dirPath, { recursive: true });
+                          } catch (e) {
+                            // Directory might already exist
+                          }
+                        }
+                        
+                        // Write the file
+                        await webcontainerInstance.fs.writeFile(
+                          change.filePath,
+                          change.newContent || ''
+                        );
+                        
+                        updateTerminalOutput((prev) => [
+                          ...prev,
+                          `✓ ${change.type === 'create' ? 'Created' : 'Updated'} ${change.filePath}`,
+                        ]);
+                        
+                        // Update file tree
+                        setFileTree((prevTree) => {
+                          const updateOrAddFile = (nodes: FileNode[]): FileNode[] => {
+                            // Check if file exists in current level
+                            const existingIndex = nodes.findIndex(n => n.path === change.filePath);
+                            if (existingIndex >= 0) {
+                              // Update existing file
+                              const updated = [...nodes];
+                              updated[existingIndex] = {
+                                ...updated[existingIndex],
+                                content: change.newContent || ''
+                              };
+                              return updated;
+                            }
+                            
+                            // Try to find parent directory and add file there
+                            return nodes.map(node => {
+                              if (node.type === 'directory' && change.filePath.startsWith(node.path + '/')) {
+                                const relativePath = change.filePath.slice(node.path.length + 1);
+                                if (!relativePath.includes('/')) {
+                                  // Direct child - add here
+                                  return {
+                                    ...node,
+                                    children: [
+                                      ...(node.children || []),
+                                      {
+                                        name: relativePath,
+                                        path: change.filePath,
+                                        type: 'file' as const,
+                                        content: change.newContent || ''
+                                      }
+                                    ]
+                                  };
+                                } else if (node.children) {
+                                  // Recurse deeper
+                                  return {
+                                    ...node,
+                                    children: updateOrAddFile(node.children)
+                                  };
+                                }
+                              }
+                              return node;
+                            });
+                          };
+                          
+                          return updateOrAddFile(prevTree);
+                        });
+                        
+                        // If updating the currently selected file, update the editor
+                        if (change.filePath === selectedFile) {
+                          setFileContent(change.newContent || '');
+                        }
+                      } else if (change.type === 'delete') {
+                        await webcontainerInstance.fs.rm(change.filePath);
+                        updateTerminalOutput((prev) => [
+                          ...prev,
+                          `✓ Deleted ${change.filePath}`,
+                        ]);
+                        
+                        // Remove from file tree
+                        setFileTree((prevTree) => {
+                          const removeFile = (nodes: FileNode[]): FileNode[] => {
+                            return nodes.filter(n => n.path !== change.filePath).map(node => {
+                              if (node.children) {
+                                return {
+                                  ...node,
+                                  children: removeFile(node.children)
+                                };
+                              }
+                              return node;
+                            });
+                          };
+                          return removeFile(prevTree);
+                        });
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Error updating file system:', error);
+                    updateTerminalOutput((prev) => [
+                      ...prev,
+                      `❌ Error updating files: ${error}`,
+                    ]);
+                    throw error;
                   }
                 }}
               />
