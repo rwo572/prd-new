@@ -96,19 +96,27 @@ export default function PrototypeChat({
 
   const applyChanges = async (changes?: CodeChange[]) => {
     const changesToApply = changes || pendingChanges
-    if (changesToApply.length === 0) return
+    console.log('Applying changes:', changesToApply)
+    if (changesToApply.length === 0) {
+      console.log('No changes to apply')
+      return
+    }
     
     setIsApplyingCode(true)
     try {
-      if (onFileSystemUpdate && changesToApply.some(c => c.filePath !== 'src/App.jsx')) {
-        // Apply file system changes
+      if (onFileSystemUpdate) {
+        console.log('Using onFileSystemUpdate to apply changes')
+        // Apply all file system changes
         await onFileSystemUpdate(changesToApply)
       } else if (onCodeUpdate) {
-        // Apply single App.jsx update (backward compatibility)
+        console.log('Using onCodeUpdate for backward compatibility')
+        // Fallback to single file update for backward compatibility
         const appChange = changesToApply.find(c => c.filePath === 'src/App.jsx')
         if (appChange?.newContent) {
           onCodeUpdate(appChange.newContent)
         }
+      } else {
+        console.log('No update handlers available!')
       }
       
       // Update message status
@@ -121,14 +129,7 @@ export default function PrototypeChat({
         return msg
       }))
       
-      // Add success message
-      const successMessage: Message = {
-        id: Date.now().toString(),
-        role: 'system',
-        content: `✅ Successfully applied ${changesToApply.length} change${changesToApply.length > 1 ? 's' : ''}!`,
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, successMessage])
+      // Don't add a separate success message - the status indicator is enough
       
       setPendingChanges([])
     } catch (error) {
@@ -445,27 +446,15 @@ export default function PrototypeChat({
                 {message.codeChanges && message.codeChanges.length > 0 && (
                   <div className="mt-3">
                     {message.status === 'pending' ? (
-                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3 border border-purple-200">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Code2 size={14} className="text-purple-600" />
-                              <span className="text-sm font-medium text-gray-800">
-                                I'll make {message.codeChanges.length} change{message.codeChanges.length > 1 ? 's' : ''} to your code:
-                              </span>
-                            </div>
-                            <div className="space-y-1 ml-5">
-                              {message.codeChanges.map((change, idx) => (
-                                <div key={idx} className="text-sm text-gray-700 flex items-start gap-2">
-                                  <span className="text-purple-600 mt-0.5">•</span>
-                                  <span>
-                                    {change.type === 'create' ? 'Create' : 
-                                     change.type === 'update' ? 'Update' : 
-                                     'Delete'} <code className="bg-white px-1 py-0.5 rounded text-xs">{change.filePath}</code>
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
+                      <div className="bg-purple-50 rounded-lg px-3 py-2 border border-purple-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Code2 size={14} className="text-purple-600" />
+                            <span className="text-sm text-gray-700">
+                              Ready to update {message.codeChanges.length === 1 
+                                ? message.codeChanges[0].filePath
+                                : `${message.codeChanges.length} files`}
+                            </span>
                           </div>
                           <div className="flex gap-2 ml-3">
                             <button
@@ -502,22 +491,14 @@ export default function PrototypeChat({
                         </div>
                       </div>
                     ) : message.status === 'applied' ? (
-                      <div className="bg-green-50 rounded-lg px-3 py-2 border border-green-200">
-                        <div className="flex items-center gap-2">
-                          <Check size={14} className="text-green-600" />
-                          <span className="text-sm text-green-800">
-                            Applied {message.codeChanges.length} change{message.codeChanges.length > 1 ? 's' : ''}
-                          </span>
-                        </div>
+                      <div className="bg-green-50 rounded-lg px-2 py-1 border border-green-200 inline-flex items-center gap-1.5 mt-2">
+                        <Check size={12} className="text-green-600" />
+                        <span className="text-xs text-green-700">Applied</span>
                       </div>
                     ) : message.status === 'rejected' ? (
-                      <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-300">
-                        <div className="flex items-center gap-2">
-                          <X size={14} className="text-gray-600" />
-                          <span className="text-sm text-gray-700">
-                            Changes rejected
-                          </span>
-                        </div>
+                      <div className="bg-gray-50 rounded-lg px-2 py-1 border border-gray-300 inline-flex items-center gap-1.5 mt-2">
+                        <X size={12} className="text-gray-500" />
+                        <span className="text-xs text-gray-600">Rejected</span>
                       </div>
                     ) : null}
                   </div>
