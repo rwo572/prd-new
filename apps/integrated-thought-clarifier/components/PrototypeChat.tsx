@@ -94,32 +94,38 @@ export default function PrototypeChat({
     return changes
   }
 
-  const applyChanges = async () => {
-    if (pendingChanges.length === 0) return
+  const applyChanges = async (changes?: CodeChange[]) => {
+    const changesToApply = changes || pendingChanges
+    if (changesToApply.length === 0) return
     
     setIsApplyingCode(true)
     try {
-      if (onFileSystemUpdate && pendingChanges.some(c => c.filePath !== 'src/App.jsx')) {
+      if (onFileSystemUpdate && changesToApply.some(c => c.filePath !== 'src/App.jsx')) {
         // Apply file system changes
-        await onFileSystemUpdate(pendingChanges)
+        await onFileSystemUpdate(changesToApply)
       } else if (onCodeUpdate) {
         // Apply single App.jsx update (backward compatibility)
-        const appChange = pendingChanges.find(c => c.filePath === 'src/App.jsx')
+        const appChange = changesToApply.find(c => c.filePath === 'src/App.jsx')
         if (appChange?.newContent) {
           onCodeUpdate(appChange.newContent)
         }
       }
       
       // Update message status
-      setMessages(prev => prev.map(msg => 
-        msg.codeChanges?.length ? { ...msg, status: 'applied' } : msg
-      ))
+      setMessages(prev => prev.map(msg => {
+        // Only update status if this message has the changes we just applied
+        if (msg.codeChanges && msg.codeChanges.length > 0 && 
+            msg.codeChanges === changes || msg.status === 'pending') {
+          return { ...msg, status: 'applied' }
+        }
+        return msg
+      }))
       
       // Add success message
       const successMessage: Message = {
         id: Date.now().toString(),
         role: 'system',
-        content: `✅ Successfully applied ${pendingChanges.length} change${pendingChanges.length > 1 ? 's' : ''}!`,
+        content: `✅ Successfully applied ${changesToApply.length} change${changesToApply.length > 1 ? 's' : ''}!`,
         timestamp: new Date()
       }
       setMessages(prev => [...prev, successMessage])
@@ -308,13 +314,28 @@ export default function PrototypeChat({
         // Extract code changes from the response
         const changes = extractCodeChanges(fullResponse)
         if (changes.length > 0) {
-          // Update the assistant message with code changes
+          // Remove code blocks from the displayed message
+          let cleanedContent = assistantMessage.content
+          
+          // Remove all code blocks that have file paths
+          cleanedContent = cleanedContent.replace(/```(?:jsx|tsx|js|ts|css|html|json)\s+[^\n]+\n[\s\S]*?```/g, '')
+          
+          // Remove standalone code blocks if they're the main App.jsx update
+          if (changes.some(c => c.filePath === 'src/App.jsx')) {
+            cleanedContent = cleanedContent.replace(/```(?:jsx|tsx|js|ts)\n[\s\S]*?```/g, '')
+          }
+          
+          // Clean up extra newlines
+          cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n').trim()
+          
+          // Update the assistant message with cleaned content and code changes
+          assistantMessage.content = cleanedContent
           assistantMessage.codeChanges = changes
           assistantMessage.status = 'pending'
           
           setMessages(prev => 
             prev.map(m => m.id === assistantMessage.id 
-              ? { ...m, codeChanges: changes, status: 'pending' }
+              ? { ...m, content: cleanedContent, codeChanges: changes, status: 'pending' }
               : m
             )
           )
@@ -393,57 +414,6 @@ export default function PrototypeChat({
         </button>
       </div>
 
-      {/* Pending Changes Bar */}
-      {pendingChanges.length > 0 && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={16} className="text-amber-600" />
-              <span className="text-sm font-medium text-amber-900">
-                {pendingChanges.length} pending change{pendingChanges.length > 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={applyChanges}
-                disabled={isApplyingCode}
-                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-1"
-              >
-                {isApplyingCode ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    Applying...
-                  </>
-                ) : (
-                  <>
-                    <Check size={14} />
-                    Apply Changes
-                  </>
-                )}
-              </button>
-              <button
-                onClick={rejectChanges}
-                disabled={isApplyingCode}
-                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-1"
-              >
-                <X size={14} />
-                Reject
-              </button>
-            </div>
-          </div>
-          <div className="mt-2 space-y-1">
-            {pendingChanges.map((change, idx) => (
-              <div key={idx} className="text-xs text-amber-700 flex items-center gap-2">
-                <FileEdit size={12} />
-                <span>
-                  {change.type === 'create' ? 'Create' : change.type === 'update' ? 'Update' : 'Delete'}: {change.filePath}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
@@ -471,34 +441,85 @@ export default function PrototypeChat({
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 </div>
                 
-                {/* Show code changes if present */}
+                {/* Show code changes with Apply/Reject buttons */}
                 {message.codeChanges && message.codeChanges.length > 0 && (
-                  <div className="mt-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Code2 size={14} className="text-gray-600" />
-                      <span className="text-xs font-medium text-gray-600">
-                        Code Changes
-                        {message.status && (
-                          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                            message.status === 'applied' ? 'bg-green-100 text-green-700' :
-                            message.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                            'bg-amber-100 text-amber-700'
-                          }`}>
-                            {message.status === 'applied' ? '✅ Applied' :
-                             message.status === 'rejected' ? '❌ Rejected' :
-                             '⏳ Pending'}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      {message.codeChanges.map((change, idx) => (
-                        <div key={idx} className="text-xs text-gray-600 flex items-center gap-1">
-                          <FileEdit size={10} />
-                          <span>{change.description || `${change.type} ${change.filePath}`}</span>
+                  <div className="mt-3">
+                    {message.status === 'pending' ? (
+                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3 border border-purple-200">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Code2 size={14} className="text-purple-600" />
+                              <span className="text-sm font-medium text-gray-800">
+                                I'll make {message.codeChanges.length} change{message.codeChanges.length > 1 ? 's' : ''} to your code:
+                              </span>
+                            </div>
+                            <div className="space-y-1 ml-5">
+                              {message.codeChanges.map((change, idx) => (
+                                <div key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                                  <span className="text-purple-600 mt-0.5">•</span>
+                                  <span>
+                                    {change.type === 'create' ? 'Create' : 
+                                     change.type === 'update' ? 'Update' : 
+                                     'Delete'} <code className="bg-white px-1 py-0.5 rounded text-xs">{change.filePath}</code>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex gap-2 ml-3">
+                            <button
+                              onClick={() => applyChanges(message.codeChanges)}
+                              disabled={isApplyingCode}
+                              className="px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                            >
+                              {isApplyingCode ? (
+                                <>
+                                  <Loader2 size={14} className="animate-spin" />
+                                  Applying...
+                                </>
+                              ) : (
+                                <>
+                                  <Check size={14} />
+                                  Apply
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setPendingChanges([])
+                                setMessages(prev => prev.map(m => 
+                                  m.id === message.id ? { ...m, status: 'rejected' } : m
+                                ))
+                              }}
+                              disabled={isApplyingCode}
+                              className="px-3 py-1.5 bg-gray-500 text-white text-sm font-medium rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                            >
+                              <X size={14} />
+                              Reject
+                            </button>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ) : message.status === 'applied' ? (
+                      <div className="bg-green-50 rounded-lg px-3 py-2 border border-green-200">
+                        <div className="flex items-center gap-2">
+                          <Check size={14} className="text-green-600" />
+                          <span className="text-sm text-green-800">
+                            Applied {message.codeChanges.length} change{message.codeChanges.length > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                    ) : message.status === 'rejected' ? (
+                      <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-300">
+                        <div className="flex items-center gap-2">
+                          <X size={14} className="text-gray-600" />
+                          <span className="text-sm text-gray-700">
+                            Changes rejected
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>
