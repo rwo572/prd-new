@@ -96,34 +96,25 @@ export default function PrototypeChat({
 
   const applyChanges = async (changes?: CodeChange[]) => {
     const changesToApply = changes || pendingChanges
-    console.log('Applying changes:', changesToApply)
-    if (changesToApply.length === 0) {
-      console.log('No changes to apply')
-      return
-    }
+    if (changesToApply.length === 0) return
     
     setIsApplyingCode(true)
     try {
       if (onFileSystemUpdate) {
-        console.log('Using onFileSystemUpdate to apply changes')
         // Apply all file system changes
         await onFileSystemUpdate(changesToApply)
       } else if (onCodeUpdate) {
-        console.log('Using onCodeUpdate for backward compatibility')
         // Fallback to single file update for backward compatibility
         const appChange = changesToApply.find(c => c.filePath === 'src/App.jsx')
         if (appChange?.newContent) {
-          onCodeUpdate(appChange.newContent)
+          await onCodeUpdate(appChange.newContent)
         }
-      } else {
-        console.log('No update handlers available!')
       }
       
       // Update message status
       setMessages(prev => prev.map(msg => {
-        // Only update status if this message has the changes we just applied
-        if (msg.codeChanges && msg.codeChanges.length > 0 && 
-            msg.codeChanges === changes || msg.status === 'pending') {
+        // Update status for messages with pending changes
+        if (msg.codeChanges && msg.codeChanges.length > 0 && msg.status === 'pending') {
           return { ...msg, status: 'applied' }
         }
         return msg

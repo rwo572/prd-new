@@ -28,7 +28,8 @@
       "Bash(pnpm dev:*)",
       "Bash(rm:*)",
       "Bash(npm run:*)",
-      "Bash(npx prettier:*)"
+      "Bash(npx prettier:*)",
+      "WebFetch(domain:api.github.com)"
     ],
     "deny": [],
     "ask": []
