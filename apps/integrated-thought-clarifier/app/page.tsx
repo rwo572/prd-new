@@ -212,22 +212,26 @@ export default function Home() {
     try {
       const response = await fetch('/api/generate-prototype', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-anthropic-api-key': apiKeys.anthropic || ''
+        },
         body: JSON.stringify({
-          prdContent,
-          apiKey: apiKeys.anthropic,
-          modelId: selectedModel || 'claude-3-5-sonnet-20241022'
+          prd: prdContent,
+          projectName: currentProject || 'My App',
+          modelId: apiKeys.selectedModel || 'claude-3-5-sonnet-20241022'
         })
       })
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.error || `HTTP error! status: ${response.status}`)
       }
       
       const data = await response.json()
       
-      if (data.success && data.code) {
-        setPrototypeCode(data.code)
+      if (data.prototype) {
+        setPrototypeCode(data.prototype)
         // Switch to prototype tab to show the generated prototype
         setActiveTab('prototype')
       } else {
@@ -391,6 +395,8 @@ export default function Home() {
                   projectName={currentProject}
                   isRegenerating={isGenerating}
                   onRegenerate={handleGeneratePrototype}
+                  apiKey={apiKeys.anthropic}
+                  modelId={apiKeys.selectedModel || 'claude-3-5-sonnet-20241022'}
                 />
               ) : (
                 <div className="h-full bg-white">
