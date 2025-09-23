@@ -7,8 +7,7 @@ import ApiKeyManager from '@/components/ApiKeyManager'
 import GitHubIntegration from '@/components/GitHubIntegration'
 import ModelSelector from '@/components/model-selector'
 import BoltPrototype from '@/components/BoltPrototype'
-import GitHubCommitsView from '@/components/GitHubCommitsView'
-import { FileText, Settings, Github, Download, Save, Code2, RefreshCw, Sparkles, GitCommit, Bot } from 'lucide-react'
+import { FileText, Settings, Github, Download, Save, Code2, RefreshCw, Sparkles, Bot } from 'lucide-react'
 import { PRDContext, Message, ApiKeys } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { generatePRD } from '@/lib/ai-service'
@@ -16,7 +15,7 @@ import { streamChatResponse } from '@/lib/ai-chat-service'
 import { savePRDLocally, exportPRD } from '@/lib/storage'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'editor' | 'prototype' | 'commits' | 'settings'>('editor')
+  const [activeTab, setActiveTab] = useState<'editor' | 'prototype' | 'settings'>('editor')
   const [isGenerating, setIsGenerating] = useState(false)
   const [githubConnected, setGithubConnected] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
@@ -294,20 +293,6 @@ export default function Home() {
             </span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('commits')}
-            className={`relative group w-12 h-12 flex items-center justify-center rounded-lg transition-all duration-200 ${
-              activeTab === 'commits' 
-                ? 'bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 shadow-sm' 
-                : 'hover:bg-slate-100 text-slate-600'
-            }`}
-            title="Commits"
-          >
-            <GitCommit size={20} />
-            <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg" style={{zIndex: 9999}}>
-              GitHub Commits
-            </span>
-          </button>
         </nav>
 
         <div className="flex flex-col gap-1 pt-4 border-t border-slate-200/50">
@@ -424,9 +409,6 @@ export default function Home() {
             </div>
           )}
 
-          {activeTab === 'commits' && (
-            <GitHubCommitsView projectName={currentProject} />
-          )}
 
           {activeTab === 'settings' && (
             <div className="h-full bg-white overflow-y-auto">
