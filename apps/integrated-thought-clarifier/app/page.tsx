@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import EnhancedPRDEditor from '@/components/EnhancedPRDEditor'
 import ApiKeyManager from '@/components/ApiKeyManager'
-import GitHubIntegration from '@/components/GitHubIntegration'
 import ModelSelector from '@/components/model-selector'
 import BoltPrototype from '@/components/BoltPrototype'
 import { FileText, Settings, Github, Download, Save, Code2, RefreshCw, Sparkles, Bot } from 'lucide-react'
@@ -18,7 +17,6 @@ import { getModelById } from '@/lib/model-config'
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'editor' | 'prototype' | 'settings'>('editor')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [githubConnected, setGithubConnected] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const [prototypeCode, setPrototypeCode] = useLocalStorage<string>('prototype-code', '')
@@ -435,16 +433,6 @@ export default function Home() {
                   />
                 </div>
 
-                {/* GitHub Integration Section */}
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-semibold mb-4">GitHub Integration</h3>
-                  <GitHubIntegration 
-                    connected={githubConnected}
-                    onConnect={() => setGithubConnected(true)}
-                    projectName={currentProject}
-                    prdContent={prdContent}
-                  />
-                </div>
               </div>
             </div>
           )}
