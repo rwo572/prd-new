@@ -105,7 +105,7 @@ export function applyMarkdownAction(
     case 'bulletList':
       if (selectedText) {
         const lines = selectedText.split('\n')
-        newText = lines.map(line => `- ${line}`).join('\n')
+        newText = lines.map((line: string) => `- ${line}`).join('\n')
       } else {
         newText = '- List item'
         editor.setSelection({
@@ -120,7 +120,7 @@ export function applyMarkdownAction(
     case 'numberedList':
       if (selectedText) {
         const lines = selectedText.split('\n')
-        newText = lines.map((line, index) => `${index + 1}. ${line}`).join('\n')
+        newText = lines.map((line: string, index: number) => `${index + 1}. ${line}`).join('\n')
       } else {
         newText = '1. List item'
         editor.setSelection({
@@ -135,7 +135,7 @@ export function applyMarkdownAction(
     case 'taskList':
       if (selectedText) {
         const lines = selectedText.split('\n')
-        newText = lines.map(line => `- [ ] ${line}`).join('\n')
+        newText = lines.map((line: string) => `- [ ] ${line}`).join('\n')
       } else {
         newText = '- [ ] Task item'
         editor.setSelection({
@@ -150,7 +150,7 @@ export function applyMarkdownAction(
     case 'quote':
       if (selectedText) {
         const lines = selectedText.split('\n')
-        newText = lines.map(line => `> ${line}`).join('\n')
+        newText = lines.map((line: string) => `> ${line}`).join('\n')
       } else {
         newText = '> Quote text'
         editor.setSelection({
@@ -231,17 +231,15 @@ export function applyMarkdownAction(
       return
   }
   
-  // Apply the edit
-  if (action !== 'heading') {
-    editor.executeEdits('', [{
-      range: selection,
-      text: newText
-    }])
-    
-    // Set cursor position if not selecting text
-    if (!selectedText && cursorOffset > 0) {
-      // Cursor position is handled in switch cases with setTimeout for some actions
-    }
+  // Apply the edit (heading, undo, and redo cases return early)
+  editor.executeEdits('', [{
+    range: selection,
+    text: newText
+  }])
+
+  // Set cursor position if not selecting text
+  if (!selectedText && cursorOffset > 0) {
+    // Cursor position is handled in switch cases with setTimeout for some actions
   }
   
   editor.focus()

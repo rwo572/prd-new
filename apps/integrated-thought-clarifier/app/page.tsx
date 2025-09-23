@@ -9,7 +9,7 @@ import ModelSelector from '@/components/model-selector'
 import BoltPrototype from '@/components/BoltPrototype'
 import GitHubCommitsView from '@/components/GitHubCommitsView'
 import { FileText, Settings, Github, Download, Save, Code2, RefreshCw, Sparkles, GitCommit, Bot } from 'lucide-react'
-import { PRDContext, Message } from '@/types'
+import { PRDContext, Message, ApiKeys } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { generatePRD } from '@/lib/ai-service'
 import { streamChatResponse } from '@/lib/ai-chat-service'
@@ -30,10 +30,11 @@ export default function Home() {
   const [messages, setMessages] = useLocalStorage<Message[]>('prd-messages', [])
   const [prdContent, setPrdContent] = useLocalStorage<string>('prd-content', '')
   const [currentProject, setCurrentProject] = useLocalStorage<string>('prd-project-name', 'untitled')
-  const [apiKeys, setApiKeys] = useLocalStorage('api-keys', {
+  const [apiKeys, setApiKeys] = useLocalStorage<ApiKeys>('api-keys', {
     openai: '',
     anthropic: '',
-    activeProvider: 'openai' as 'openai' | 'anthropic'
+    activeProvider: 'openai',
+    selectedModel: undefined
   })
   
   // Set client flag after mount
@@ -219,7 +220,7 @@ export default function Home() {
         body: JSON.stringify({
           prd: prdContent,
           projectName: currentProject || 'My App',
-          modelId: apiKeys.selectedModel || 'claude-3-5-sonnet-20241022'
+          modelId: apiKeys.selectedModel || 'claude-sonnet-4-20250514'
         })
       })
       
@@ -396,7 +397,7 @@ export default function Home() {
                   isRegenerating={isGenerating}
                   onRegenerate={handleGeneratePrototype}
                   apiKey={apiKeys.anthropic}
-                  modelId={apiKeys.selectedModel || 'claude-3-5-sonnet-20241022'}
+                  modelId={apiKeys.selectedModel || 'claude-sonnet-4-20250514'}
                 />
               ) : (
                 <div className="h-full bg-white">

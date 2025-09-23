@@ -1,22 +1,42 @@
 import { ModelConfig } from '@/types'
 
 export const AI_MODELS: ModelConfig[] = [
-  // OpenAI Models - Including GPT-5
+  // OpenAI Models - Latest 2025 Models
   {
-    id: 'gpt-5',
-    name: 'GPT-5',
+    id: 'o3',
+    name: 'OpenAI o3',
     provider: 'openai',
-    contextWindow: 256000,
+    contextWindow: 200000,
     outputTokens: 32768,
-    bestFor: ['Advanced reasoning', 'Complex PRDs', 'Multimodal mastery', 'Best overall'],
+    bestFor: ['Ultimate reasoning', 'Complex problem solving', 'Math', 'Science', 'Coding'],
+    costPer1kTokens: { input: 0.06, output: 0.24 },
+    available: true
+  },
+  {
+    id: 'o4-mini',
+    name: 'OpenAI o4-mini',
+    provider: 'openai',
+    contextWindow: 200000,
+    outputTokens: 16384,
+    bestFor: ['Fast reasoning', 'Cost-effective problem solving', 'Math', 'Coding'],
+    costPer1kTokens: { input: 0.003, output: 0.012 },
+    available: true
+  },
+  {
+    id: 'gpt-4.1',
+    name: 'GPT-4.1',
+    provider: 'openai',
+    contextWindow: 200000,
+    outputTokens: 16384,
+    bestFor: ['Enhanced coding', 'Instruction following', 'General tasks'],
     costPer1kTokens: { input: 0.005, output: 0.015 },
     available: true
   },
   {
-    id: 'gpt-5-mini',
-    name: 'GPT-5 Mini',
+    id: 'gpt-4.1-mini',
+    name: 'GPT-4.1 Mini',
     provider: 'openai',
-    contextWindow: 256000,
+    contextWindow: 200000,
     outputTokens: 16384,
     bestFor: ['Fast responses', 'Cost-effective', 'High volume tasks'],
     costPer1kTokens: { input: 0.0003, output: 0.001 },
@@ -28,7 +48,7 @@ export const AI_MODELS: ModelConfig[] = [
     provider: 'openai',
     contextWindow: 128000,
     outputTokens: 16384,
-    bestFor: ['Complex reasoning', 'Multimodal tasks', 'Fast responses'],
+    bestFor: ['Multimodal tasks', 'Creative work', 'General conversations'],
     costPer1kTokens: { input: 0.0025, output: 0.01 },
     available: true
   },
@@ -42,21 +62,11 @@ export const AI_MODELS: ModelConfig[] = [
     costPer1kTokens: { input: 0.00015, output: 0.0006 },
     available: true
   },
-  {
-    id: 'gpt-4-turbo',
-    name: 'GPT-4 Turbo',
-    provider: 'openai',
-    contextWindow: 128000,
-    outputTokens: 4096,
-    bestFor: ['PRD generation', 'Code generation', 'Complex analysis'],
-    costPer1kTokens: { input: 0.01, output: 0.03 },
-    available: true
-  },
   
   // Anthropic Models - Claude 4 Series and Latest versions
   {
     id: 'claude-opus-4-1-20250805',
-    name: 'Claude Opus 4.1 (Latest)',
+    name: 'Claude Opus 4.1',
     provider: 'anthropic',
     contextWindow: 500000,
     outputTokens: 16384,
@@ -134,24 +144,24 @@ export const MODEL_RECOMMENDATIONS = {
     reason: 'Claude Opus 4.1 provides unmatched reasoning and comprehensive PRD generation'
   },
   'quick-questions': {
-    primary: 'gpt-5-mini',
-    fallback: 'claude-3-5-haiku-20241022',
-    reason: 'Fast and cost-effective for simple clarifications'
+    primary: 'o4-mini',
+    fallback: 'gpt-4.1-mini',
+    reason: 'Fast reasoning and cost-effective for simple clarifications'
   },
   'complex-analysis': {
-    primary: 'claude-opus-4-1-20250805',
-    fallback: 'gpt-5',
+    primary: 'o3',
+    fallback: 'claude-opus-4-1-20250805',
     reason: 'Ultimate reasoning capabilities for complex problem solving'
   },
   'code-generation': {
     primary: 'claude-sonnet-4-20250514',
-    fallback: 'gpt-5',
+    fallback: 'gpt-4.1',
     reason: 'Claude Sonnet 4 has advanced coding capabilities with large context'
   },
   'brainstorming': {
-    primary: 'gpt-5',
+    primary: 'gpt-4.1',
     fallback: 'claude-sonnet-4-20250514',
-    reason: 'GPT-5 offers superior creative and diverse ideation'
+    reason: 'GPT-4.1 offers superior creative and diverse ideation'
   }
 }
 

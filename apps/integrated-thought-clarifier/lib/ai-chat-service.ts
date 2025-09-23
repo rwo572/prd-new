@@ -228,15 +228,15 @@ IMPORTANT:
       conversationContext.collectedAnswers = {
         ...conversationContext.collectedAnswers,
         ...answers
-      }
+      } as Record<string, string>
       
       // After 2-3 questions, generate the PRD
-      if (conversationContext.questionsAsked >= 2 || 
+      if ((conversationContext.questionsAsked || 0) >= 2 || 
           lowerMessage.includes('generate') || 
           lowerMessage.includes('create the prd')) {
         
         // Generate the PRD based on stage and collected context
-        const prdContent = await generateAIGuidedPRD(conversationContext.collectedAnswers)
+        const prdContent = await generateAIGuidedPRD(conversationContext.collectedAnswers as any)
         
         // Update system prompt to output the generated PRD
         systemPrompt = `You are an AI assistant that has collected information about a product. 
@@ -246,8 +246,12 @@ IMPORTANT:
         // Reset context after generation
         conversationContext = {}
       } else {
-        // Get the next question to ask
-        const nextQuestion = getNextQuestion(conversationContext.collectedAnswers)
+        // Get the next question to ask - fixed productStage error
+        const nextQuestion = getNextQuestion({
+          messages: [],
+          currentAnswers: conversationContext.collectedAnswers || {},
+          questionCount: conversationContext.questionsAsked || 0
+        })
         if (nextQuestion) {
           conversationContext.questionsAsked = (conversationContext.questionsAsked || 0) + 1
           systemPrompt += `\n\nBased on the answer provided, ask: ${nextQuestion}`
@@ -294,6 +298,9 @@ IMPORTANT:
     // Start streaming
     callbacks.onThought?.('')
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+
     const response = await fetch('/api/chat-stream', {
       method: 'POST',
       headers: {
@@ -306,8 +313,11 @@ IMPORTANT:
         modelId: selectedModel.id,
         provider: selectedModel.provider,
         stream: true
-      })
+      }),
+      signal: controller.signal
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.statusText}`)
@@ -321,33 +331,41 @@ IMPORTANT:
       throw new Error('Response body is not readable')
     }
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-      const chunk = decoder.decode(value)
-      const lines = chunk.split('\n')
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6)
-          if (data === '[DONE]') continue
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') continue
 
-          try {
-            const parsed = JSON.parse(data)
-            
-            if (parsed.content) {
-              fullResponse += parsed.content
-              callbacks.onContent?.(fullResponse)
-            } else if (parsed.error) {
-              callbacks.onError?.(parsed.error)
-              return
+            try {
+              const parsed = JSON.parse(data)
+
+              if (parsed.content) {
+                fullResponse += parsed.content
+                callbacks.onContent?.(fullResponse)
+              } else if (parsed.error) {
+                callbacks.onError?.(parsed.error)
+                return
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e)
             }
-          } catch (e) {
-            console.error('Error parsing SSE data:', e)
           }
         }
       }
+    } catch (error) {
+      console.error('Stream reading error:', error)
+      callbacks.onError?.('Stream connection failed. Please try again.')
+      return
+    } finally {
+      reader.releaseLock()
     }
 
     // Always call onComplete, even if response is empty
