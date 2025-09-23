@@ -13,6 +13,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { generatePRD } from '@/lib/ai-service'
 import { streamChatResponse } from '@/lib/ai-chat-service'
 import { savePRDLocally, exportPRD } from '@/lib/storage'
+import { getModelById } from '@/lib/model-config'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'editor' | 'prototype' | 'settings'>('editor')
@@ -179,9 +180,11 @@ export default function Home() {
   }
 
   const handleModelChange = (modelId: string) => {
+    const selectedModel = getModelById(modelId)
     setApiKeys(prev => ({
       ...prev,
-      selectedModel: modelId
+      selectedModel: modelId,
+      activeProvider: selectedModel?.provider || prev.activeProvider
     }))
   }
 
@@ -414,21 +417,21 @@ export default function Home() {
             <div className="h-full bg-white overflow-y-auto">
               <div className="max-w-2xl mx-auto p-6">
                 <h2 className="text-2xl font-bold mb-6">Settings</h2>
-                
-                {/* API Keys Section */}
+
+                {/* Model Selection Section */}
                 <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-4">AI Model</h3>
+                  <ModelSelector
+                    apiKeys={apiKeys}
+                    onModelChange={handleModelChange}
+                  />
+                </div>
+
+                {/* API Keys Section */}
+                <div className="border-t pt-6">
                   <ApiKeyManager
                     apiKeys={apiKeys}
                     onUpdateKeys={setApiKeys}
-                  />
-                </div>
-                
-                {/* Model Selection Section */}
-                <div className="border-t pt-6 pb-6">
-                  <h3 className="text-lg font-semibold mb-4">AI Model</h3>
-                  <ModelSelector 
-                    apiKeys={apiKeys}
-                    onModelChange={handleModelChange}
                   />
                 </div>
 

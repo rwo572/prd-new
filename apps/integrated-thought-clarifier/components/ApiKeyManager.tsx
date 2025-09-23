@@ -150,35 +150,6 @@ export default function ApiKeyManager({ apiKeys, onUpdateKeys }: ApiKeyManagerPr
           </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Active Provider
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => setTempKeys({ ...tempKeys, activeProvider: 'openai' })}
-              className={`px-4 py-3 rounded-lg border-2 transition-colors ${
-                tempKeys.activeProvider === 'openai'
-                  ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="font-medium">OpenAI</div>
-              <div className="text-sm text-gray-500 mt-1">GPT-4</div>
-            </button>
-            <button
-              onClick={() => setTempKeys({ ...tempKeys, activeProvider: 'anthropic' })}
-              className={`px-4 py-3 rounded-lg border-2 transition-colors ${
-                tempKeys.activeProvider === 'anthropic'
-                  ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="font-medium">Anthropic</div>
-              <div className="text-sm text-gray-500 mt-1">Claude 3</div>
-            </button>
-          </div>
-        </div>
       </div>
 
       <div className="pt-4">
