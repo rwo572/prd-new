@@ -140,24 +140,20 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         }
       }
 
-      // Neural synapse effect
+      // Neural synapse effect - simplified cores only
       for (let i = 0; i < 12; i++) {
         const synapseX = width * (0.1 + (i % 4) * 0.25)
         const synapseY = height * (0.2 + Math.floor(i / 4) * 0.3)
         const pulse = Math.sin(time * 3 + i) * 0.5 + 0.5
 
-        // Create expanding ring
-        ctx.strokeStyle = `rgba(99, 102, 241, ${0.3 * pulse})`
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        ctx.arc(synapseX, synapseY, 20 + pulse * 30, 0, Math.PI * 2)
-        ctx.stroke()
-
-        // Inner core
+        // Inner core with subtle glow
+        ctx.shadowColor = `rgba(168, 85, 247, ${0.8 * pulse})`
+        ctx.shadowBlur = 8 + pulse * 4
         ctx.fillStyle = `rgba(168, 85, 247, ${0.6 + pulse * 0.4})`
         ctx.beginPath()
-        ctx.arc(synapseX, synapseY, 3 + pulse * 2, 0, Math.PI * 2)
+        ctx.arc(synapseX, synapseY, 2 + pulse * 1.5, 0, Math.PI * 2)
         ctx.fill()
+        ctx.shadowBlur = 0
       }
 
       // Dynamic flowing energy waves
@@ -387,7 +383,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-slate-800 via-indigo-600 to-blue-600 bg-clip-text text-transparent mb-6">
+          <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-slate-800 via-indigo-600 to-blue-600 bg-clip-text text-transparent mb-6 tracking-tight" style={{ fontFamily: '"Space Grotesk", "Inter", system-ui, sans-serif', fontVariationSettings: '"wght" 900' }}>
             prd.dev
           </h1>
 
@@ -422,7 +418,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* How It Works */}
       <section className="py-20 px-6 bg-slate-50">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center text-slate-800 mb-16">
+          <h2 className="text-4xl font-bold text-center text-slate-800 mb-16 tracking-tight" style={{ fontFamily: '"JetBrains Mono", "Fira Code", monospace', fontVariationSettings: '"wght" 700' }}>
             From AI Product Idea to Prototype in Minutes
           </h2>
 
@@ -431,7 +427,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Sparkles className="w-8 h-8 text-indigo-600" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">1. AI-Native Discovery</h3>
+              <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: '"Outfit", "Inter", system-ui, sans-serif' }}>1. AI-Native Discovery</h3>
               <p className="text-slate-600">
                 Our AI asks specialized questions about LLM selection, safety guardrails, prompt engineering, and AI-specific requirements to clarify your vision.
               </p>
@@ -441,7 +437,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <FileText className="w-8 h-8 text-purple-600" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">2. AI-Optimized PRD</h3>
+              <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: '"Outfit", "Inter", system-ui, sans-serif' }}>2. AI-Optimized PRD</h3>
               <p className="text-slate-600">
                 Generate PRDs with 40+ AI-specific quality rules covering model specifications, bias mitigation, hallucination prevention, and privacy compliance.
               </p>
@@ -451,7 +447,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Code2 className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">3. AI-Ready Prototype</h3>
+              <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: '"Outfit", "Inter", system-ui, sans-serif' }}>3. AI-Ready Prototype</h3>
               <p className="text-slate-600">
                 Transform your AI product PRD into working prototypes with integrated AI capabilities, streaming responses, and error handling.
               </p>
@@ -463,7 +459,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* Features Grid */}
       <section className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center text-slate-800 mb-16">
+          <h2 className="text-4xl font-extrabold text-center text-slate-800 mb-16 tracking-tight" style={{ fontFamily: '"Clash Display", "Space Grotesk", system-ui, sans-serif', fontVariationSettings: '"wght" 800' }}>
             Built for AI Product Teams
           </h2>
 
@@ -471,7 +467,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             {features.map((feature, index) => (
               <div key={index} className="p-6 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-200">
                 <feature.icon className="w-8 h-8 text-indigo-600 mb-4" />
-                <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
+                <h3 className="text-xl font-semibold mb-3" style={{ fontFamily: '"Satoshi", "Inter", system-ui, sans-serif' }}>{feature.title}</h3>
                 <p className="text-slate-600">{feature.description}</p>
               </div>
             ))}
@@ -483,7 +479,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       <section className="py-20 px-6 bg-gradient-to-r from-slate-800 to-slate-900 text-white">
         <div className="max-w-4xl mx-auto text-center">
           <Shield className="w-16 h-16 text-indigo-400 mx-auto mb-8" />
-          <h2 className="text-4xl font-bold mb-8">Privacy by Design</h2>
+          <h2 className="text-4xl font-bold mb-8 tracking-tight" style={{ fontFamily: '"Clash Display", "Space Grotesk", system-ui, sans-serif' }}>Privacy by Design</h2>
           <p className="text-xl text-slate-300 mb-12 leading-relaxed">
             Your competitive AI ideas deserve protection. We built prd.dev
             with zero data retention - everything stays in your browser and your GitHub repositories.
@@ -492,7 +488,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
           <div className="grid md:grid-cols-2 gap-8 text-left">
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-indigo-400">What we never store:</h3>
+              <h3 className="text-xl font-semibold text-indigo-400" style={{ fontFamily: '"Satoshi", "Inter", system-ui, sans-serif' }}>What we never store:</h3>
               <ul className="space-y-2">
                 <li className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-red-400 rounded-full"></div>
@@ -514,7 +510,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-indigo-400">What you control:</h3>
+              <h3 className="text-xl font-semibold text-indigo-400" style={{ fontFamily: '"Satoshi", "Inter", system-ui, sans-serif' }}>What you control:</h3>
               <ul className="space-y-2">
                 <li className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-green-400" />
@@ -541,7 +537,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* Benefits */}
       <section className="py-20 px-6 bg-slate-50">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl font-bold text-center text-slate-800 mb-16">
+          <h2 className="text-4xl font-extrabold text-center text-slate-800 mb-16 tracking-tight" style={{ fontFamily: '"Clash Display", "Space Grotesk", system-ui, sans-serif' }}>
             Why AI Product Teams Choose prd.dev
           </h2>
 
@@ -561,7 +557,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* CTA */}
       <section className="py-20 px-6 bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-8">Ready to Transform Your Product Process?</h2>
+          <h2 className="text-4xl font-bold mb-8 tracking-tight" style={{ fontFamily: '"Clash Display", "Space Grotesk", system-ui, sans-serif' }}>Ready to Transform Your Product Process?</h2>
           <p className="text-xl mb-12 text-indigo-100">
             Join hundreds of AI product teams already shipping faster with specialized PRD tooling.
           </p>
