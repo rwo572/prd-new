@@ -435,12 +435,14 @@ export default function ChatPanel({
                         ul: ({children}) => <ul className="list-disc pl-5 mb-2 space-y-1 break-words">{children}</ul>,
                         ol: ({children}) => <ol className="list-decimal pl-5 mb-2 space-y-1 break-words">{children}</ol>,
                         li: ({children}) => <li className="text-sm break-words">{children}</li>,
-                        code: ({children, ...props}: any) =>
-                          props.inline ? (
+                        code: ({children, ...allProps}: any) => {
+                          const isInline = (allProps as any).inline
+                          return isInline ? (
                             <code className="px-1 py-0.5 bg-slate-100 rounded text-xs font-mono break-all">{children}</code>
                           ) : (
                             <code className="block p-3 bg-slate-100 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">{children}</code>
-                          ),
+                          )
+                        },
                         pre: ({children}) => <pre className="mb-2 overflow-x-auto whitespace-pre-wrap break-words">{children}</pre>,
                         blockquote: ({children}) => (
                           <blockquote className="border-l-4 border-slate-300 pl-3 italic my-2">{children}</blockquote>
