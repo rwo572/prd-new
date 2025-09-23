@@ -38,48 +38,91 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
       ctx.clearRect(0, 0, width, height)
 
-      // Create gradient background
-      const gradient = ctx.createLinearGradient(0, 0, width, height)
-      gradient.addColorStop(0, `rgba(99, 102, 241, ${0.1 + Math.sin(time) * 0.05})`)
-      gradient.addColorStop(0.5, `rgba(168, 85, 247, ${0.08 + Math.cos(time * 1.2) * 0.03})`)
-      gradient.addColorStop(1, `rgba(59, 130, 246, ${0.06 + Math.sin(time * 0.8) * 0.02})`)
+      // Create dynamic gradient background with color shifting
+      const gradient = ctx.createRadialGradient(
+        width * (0.5 + Math.sin(time * 0.5) * 0.3),
+        height * (0.5 + Math.cos(time * 0.3) * 0.2),
+        0,
+        width * 0.5,
+        height * 0.5,
+        Math.max(width, height) * 0.8
+      )
+      gradient.addColorStop(0, `rgba(99, 102, 241, ${0.15 + Math.sin(time) * 0.1})`)
+      gradient.addColorStop(0.3, `rgba(168, 85, 247, ${0.12 + Math.cos(time * 1.3) * 0.08})`)
+      gradient.addColorStop(0.6, `rgba(59, 130, 246, ${0.08 + Math.sin(time * 0.7) * 0.05})`)
+      gradient.addColorStop(1, `rgba(16, 185, 129, ${0.05 + Math.cos(time * 0.9) * 0.03})`)
 
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, width, height)
 
-      // Animated particles
-      for (let i = 0; i < 20; i++) {
-        const x = (Math.sin(time + i) * 0.5 + 0.5) * width
-        const y = (Math.cos(time * 1.1 + i * 0.5) * 0.5 + 0.5) * height
-        const size = 2 + Math.sin(time * 2 + i) * 1
-        const opacity = 0.3 + Math.sin(time * 1.5 + i) * 0.2
+      // Enhanced animated particles with trails
+      for (let i = 0; i < 35; i++) {
+        const baseX = (Math.sin(time * 0.8 + i * 0.3) * 0.5 + 0.5) * width
+        const baseY = (Math.cos(time * 0.6 + i * 0.7) * 0.5 + 0.5) * height
+        const size = 1.5 + Math.sin(time * 3 + i) * 1.5
+        const opacity = 0.4 + Math.sin(time * 2 + i) * 0.3
 
-        // Mouse interaction
-        const dx = mousePosition.x - x
-        const dy = mousePosition.y - y
+        // Mouse interaction with stronger influence
+        const dx = mousePosition.x - baseX
+        const dy = mousePosition.y - baseY
         const distance = Math.sqrt(dx * dx + dy * dy)
-        const influence = Math.max(0, 1 - distance / 200)
+        const influence = Math.max(0, 1 - distance / 150)
 
+        const x = baseX + dx * influence * 0.3
+        const y = baseY + dy * influence * 0.3
+
+        // Draw particle with glow effect
+        ctx.shadowColor = `rgba(99, 102, 241, ${opacity * 0.8})`
+        ctx.shadowBlur = 10 + influence * 15
         ctx.beginPath()
-        ctx.arc(x + dx * influence * 0.1, y + dy * influence * 0.1, size + influence * 2, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(255, 255, 255, ${opacity + influence * 0.3})`
+        ctx.arc(x, y, size + influence * 3, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(255, 255, 255, ${opacity + influence * 0.4})`
         ctx.fill()
+        ctx.shadowBlur = 0
+
+        // Add smaller accent particles
+        if (i % 3 === 0) {
+          ctx.beginPath()
+          ctx.arc(x + Math.sin(time * 4 + i) * 8, y + Math.cos(time * 4 + i) * 8, 0.5, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(168, 85, 247, ${opacity * 0.6})`
+          ctx.fill()
+        }
       }
 
-      // Flowing lines
-      ctx.strokeStyle = `rgba(255, 255, 255, 0.1)`
-      ctx.lineWidth = 1
-      for (let i = 0; i < 5; i++) {
+      // Dynamic flowing energy waves
+      ctx.strokeStyle = `rgba(255, 255, 255, 0.15)`
+      for (let i = 0; i < 8; i++) {
+        ctx.lineWidth = 0.5 + Math.sin(time + i) * 0.5
         ctx.beginPath()
-        const startX = Math.sin(time + i) * width * 0.2 + width * 0.1
-        const startY = height * (i / 5)
-        ctx.moveTo(startX, startY)
+        const amplitude = 40 + Math.sin(time * 0.5 + i) * 20
+        const frequency = 0.008 + i * 0.002
+        const speed = time * 150 + i * 100
 
-        for (let x = startX; x < width; x += 20) {
-          const y = startY + Math.sin((x + time * 100) * 0.01 + i) * 30
-          ctx.lineTo(x, y)
+        for (let x = 0; x <= width; x += 2) {
+          const y = height * (0.2 + i * 0.1) + Math.sin((x + speed) * frequency) * amplitude
+          if (x === 0) {
+            ctx.moveTo(x, y)
+          } else {
+            ctx.lineTo(x, y)
+          }
         }
         ctx.stroke()
+      }
+
+      // Prismatic light beams
+      for (let i = 0; i < 3; i++) {
+        const beamGradient = ctx.createLinearGradient(
+          width * (0.2 + i * 0.3), 0,
+          width * (0.2 + i * 0.3), height
+        )
+        beamGradient.addColorStop(0, `rgba(99, 102, 241, ${0.03 + Math.sin(time + i) * 0.02})`)
+        beamGradient.addColorStop(0.5, `rgba(168, 85, 247, ${0.05 + Math.cos(time * 1.1 + i) * 0.03})`)
+        beamGradient.addColorStop(1, `rgba(59, 130, 246, ${0.02 + Math.sin(time * 0.9 + i) * 0.01})`)
+
+        ctx.fillStyle = beamGradient
+        const beamWidth = 60 + Math.sin(time + i) * 20
+        const beamX = width * (0.2 + i * 0.3) - beamWidth / 2
+        ctx.fillRect(beamX, 0, beamWidth, height)
       }
 
       animationRef.current = requestAnimationFrame(animate)
@@ -176,15 +219,12 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             <span className="font-semibold">Privacy-first. Git-native. AI-optimized.</span>
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <button
               onClick={onGetStarted}
-              className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl font-semibold text-lg hover:from-indigo-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 group"
+              className="px-10 py-5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl font-semibold text-xl hover:from-indigo-700 hover:to-blue-700 transition-all duration-200 shadow-xl hover:shadow-2xl hover:scale-105 flex items-center gap-3 group"
             >
-              Start Building <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
-            <button className="px-8 py-4 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold text-lg hover:border-indigo-400 hover:text-indigo-600 transition-all duration-200">
-              View Demo
+              Start Building <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>
