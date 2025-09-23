@@ -108,41 +108,41 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
   const features = [
     {
       icon: Sparkles,
-      title: "AI-Powered Discovery",
-      description: "Intelligent questioning guides you to uncover hidden requirements and edge cases"
+      title: "AI-Native Discovery Engine",
+      description: "Specialized questioning for LLM selection, prompt engineering, safety guardrails, and AI-specific requirements"
     },
     {
       icon: Shield,
-      title: "Privacy First",
-      description: "Zero data retention. Your API keys and PRDs stay in your browser, never on our servers"
+      title: "AI Privacy & Safety First",
+      description: "Built-in compliance for AI regulations, bias detection, and secure handling of AI training data"
     },
     {
       icon: Zap,
-      title: "Instant Prototypes",
-      description: "Generate working prototypes directly from your PRD with one click"
+      title: "AI-Integrated Prototypes",
+      description: "Generate working AI-powered prototypes with streaming responses, error handling, and fallback strategies"
     },
     {
       icon: GitBranch,
-      title: "Git-Native Workflow",
-      description: "Version control your PRDs like code. Track changes, create branches, merge improvements"
+      title: "AI Model Versioning",
+      description: "Track AI model changes, prompt iterations, and performance metrics through Git-native workflow"
     },
     {
       icon: Code2,
-      title: "Production-Ready Code",
-      description: "Export React, TypeScript, or HTML that developers can use as a starting point"
+      title: "AI-Ready Production Code",
+      description: "Export React components with pre-built AI integrations, API error handling, and streaming UI patterns"
     },
     {
       icon: FileText,
-      title: "Intelligent Linting",
-      description: "40+ quality rules ensure your PRDs are complete, clear, and prototype-ready"
+      title: "AI-Specific Quality Linting",
+      description: "40+ AI-focused rules covering hallucination prevention, model specifications, data retention, and ethical AI practices"
     }
   ]
 
   const benefits = [
-    "Reduce time from idea to prototype by 80%",
-    "Achieve 90% stakeholder alignment on first iteration",
-    "Maintain complete traceability through Git history",
-    "Zero learning curve - familiar markdown and Git workflow"
+    "Reduce time from AI idea to prototype by 80%",
+    "Ensure AI safety compliance with 40+ specialized rules",
+    "Maintain complete AI model and prompt versioning through Git",
+    "Built-in templates for LLM apps, AI agents, and RAG systems"
   ]
 
   return (
@@ -163,13 +163,17 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-slate-800 via-indigo-600 to-blue-600 bg-clip-text text-transparent mb-6">
-            Integrated Thought Clarifier
+            prd.dev
           </h1>
 
-          <p className="text-xl md:text-2xl text-slate-600 mb-8 leading-relaxed">
-            Transform your product ideas into working prototypes through AI-guided PRD creation.
+          <p className="text-xl md:text-2xl text-slate-600 mb-4 leading-relaxed">
+            <span className="font-bold text-indigo-700">For AI-Native Product Builders</span>
             <br />
-            <span className="font-semibold">Privacy-first. Git-native. Prototype-ready.</span>
+            Transform your AI product ideas into working prototypes through intelligent PRD creation.
+          </p>
+
+          <p className="text-lg text-slate-500 mb-8">
+            <span className="font-semibold">Privacy-first. Git-native. AI-optimized.</span>
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -197,7 +201,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       <section className="py-20 px-6 bg-slate-50">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-center text-slate-800 mb-16">
-            From Idea to Prototype in Minutes
+            From AI Product Idea to Prototype in Minutes
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -205,9 +209,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Sparkles className="w-8 h-8 text-indigo-600" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">1. AI Discovery</h3>
+              <h3 className="text-xl font-semibold mb-4">1. AI-Native Discovery</h3>
               <p className="text-slate-600">
-                Our AI asks intelligent questions to help you clarify your product vision and uncover hidden requirements.
+                Our AI asks specialized questions about LLM selection, safety guardrails, prompt engineering, and AI-specific requirements to clarify your vision.
               </p>
             </div>
 
@@ -215,9 +219,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <FileText className="w-8 h-8 text-purple-600" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">2. Structured PRD</h3>
+              <h3 className="text-xl font-semibold mb-4">2. AI-Optimized PRD</h3>
               <p className="text-slate-600">
-                Generate a complete, lint-checked PRD with acceptance criteria, user stories, and technical specifications.
+                Generate PRDs with 40+ AI-specific quality rules covering model specifications, bias mitigation, hallucination prevention, and privacy compliance.
               </p>
             </div>
 
@@ -225,9 +229,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Code2 className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">3. Live Prototype</h3>
+              <h3 className="text-xl font-semibold mb-4">3. AI-Ready Prototype</h3>
               <p className="text-slate-600">
-                Transform your PRD into a working prototype with production-ready React code in seconds.
+                Transform your AI product PRD into working prototypes with integrated AI capabilities, streaming responses, and error handling.
               </p>
             </div>
           </div>
@@ -238,7 +242,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       <section className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-center text-slate-800 mb-16">
-            Built for Modern Product Teams
+            Built for AI Product Teams
           </h2>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -259,7 +263,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           <Shield className="w-16 h-16 text-indigo-400 mx-auto mb-8" />
           <h2 className="text-4xl font-bold mb-8">Privacy by Design</h2>
           <p className="text-xl text-slate-300 mb-12 leading-relaxed">
-            Your competitive ideas deserve protection. We built the Integrated Thought Clarifier
+            Your competitive AI ideas deserve protection. We built prd.dev
             with zero data retention - everything stays in your browser and your GitHub repositories.
             Bring your own API keys, own your data.
           </p>
@@ -316,7 +320,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       <section className="py-20 px-6 bg-slate-50">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-4xl font-bold text-center text-slate-800 mb-16">
-            Why Product Teams Choose Us
+            Why AI Product Teams Choose prd.dev
           </h2>
 
           <div className="space-y-6">
@@ -337,7 +341,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold mb-8">Ready to Transform Your Product Process?</h2>
           <p className="text-xl mb-12 text-indigo-100">
-            Join hundreds of product teams already building faster with AI-powered PRDs.
+            Join hundreds of AI product teams already shipping faster with specialized PRD tooling.
           </p>
 
           <button
