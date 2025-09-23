@@ -6,6 +6,7 @@ import EnhancedPRDEditor from '@/components/EnhancedPRDEditor'
 import ApiKeyManager from '@/components/ApiKeyManager'
 import ModelSelector from '@/components/model-selector'
 import BoltPrototype from '@/components/BoltPrototype'
+import LandingPage from '@/components/LandingPage'
 import { FileText, Settings, Github, Download, Code2, RefreshCw, Sparkles, Bot } from 'lucide-react'
 import { PRDContext, Message, ApiKeys } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
@@ -15,7 +16,7 @@ import { exportPRD } from '@/lib/storage'
 import { getModelById } from '@/lib/model-config'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'editor' | 'prototype' | 'settings'>('editor')
+  const [activeTab, setActiveTab] = useState<'landing' | 'editor' | 'prototype' | 'settings'>('landing')
   const [isGenerating, setIsGenerating] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
   const [isClient, setIsClient] = useState(false)
@@ -252,9 +253,13 @@ export default function Home() {
       {/* Collapsed Sidebar - Icons Only */}
       <div className="w-16 bg-white/80 backdrop-blur-sm border-r border-slate-200/50 flex flex-col items-center py-4">
         <div className="mb-8 flex items-center justify-center">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg">
+          <button
+            onClick={() => setActiveTab(activeTab === 'landing' ? 'editor' : 'landing')}
+            className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+            title={activeTab === 'landing' ? 'Go to Editor' : 'Go to Home'}
+          >
             <Bot className="w-6 h-6 text-white" />
-          </div>
+          </button>
         </div>
 
         <nav className="flex-1 flex flex-col gap-1">
@@ -325,6 +330,10 @@ export default function Home() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Content Area - No Header */}
         <div className="flex-1 overflow-hidden">
+          {activeTab === 'landing' && (
+            <LandingPage onGetStarted={() => setActiveTab('editor')} />
+          )}
+
           {activeTab === 'editor' && (
             <EnhancedPRDEditor
               content={prdContent}
