@@ -383,7 +383,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-slate-800 via-indigo-600 to-blue-600 bg-clip-text text-transparent mb-6 tracking-tight" style={{ fontFamily: '"Space Grotesk", "Inter", system-ui, sans-serif', fontVariationSettings: '"wght" 900' }}>
+          <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-slate-800 via-indigo-600 to-blue-600 bg-clip-text text-transparent mb-6 tracking-wide" style={{ fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", "Monaco", "Consolas", monospace' }}>
             prd.dev
           </h1>
 
