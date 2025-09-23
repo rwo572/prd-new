@@ -6,12 +6,12 @@ import EnhancedPRDEditor from '@/components/EnhancedPRDEditor'
 import ApiKeyManager from '@/components/ApiKeyManager'
 import ModelSelector from '@/components/model-selector'
 import BoltPrototype from '@/components/BoltPrototype'
-import { FileText, Settings, Github, Download, Save, Code2, RefreshCw, Sparkles, Bot } from 'lucide-react'
+import { FileText, Settings, Github, Download, Code2, RefreshCw, Sparkles, Bot } from 'lucide-react'
 import { PRDContext, Message, ApiKeys } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { generatePRD } from '@/lib/ai-service'
 import { streamChatResponse } from '@/lib/ai-chat-service'
-import { savePRDLocally, exportPRD } from '@/lib/storage'
+import { exportPRD } from '@/lib/storage'
 import { getModelById } from '@/lib/model-config'
 
 export default function Home() {
@@ -169,9 +169,6 @@ export default function Home() {
     }
   }
 
-  const handleSavePRD = async () => {
-    await savePRDLocally(currentProject, prdContent)
-  }
 
   const handleExportPRD = () => {
     exportPRD(currentProject, prdContent)
@@ -297,16 +294,6 @@ export default function Home() {
         </nav>
 
         <div className="flex flex-col gap-1 pt-4 border-t border-slate-200/50">
-          <button
-            onClick={handleSavePRD}
-            className="relative group w-12 h-12 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition-all duration-200 hover:shadow-sm"
-            title="Save Locally"
-          >
-            <Save size={20} />
-            <span className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg" style={{zIndex: 9999}}>
-              Save Locally
-            </span>
-          </button>
 
           <button
             onClick={handleExportPRD}
