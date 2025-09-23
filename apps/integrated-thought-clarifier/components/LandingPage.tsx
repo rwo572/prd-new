@@ -38,55 +38,126 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
       ctx.clearRect(0, 0, width, height)
 
-      // Create dynamic gradient background with color shifting
-      const gradient = ctx.createRadialGradient(
-        width * (0.5 + Math.sin(time * 0.5) * 0.3),
-        height * (0.5 + Math.cos(time * 0.3) * 0.2),
+      // Create complex multi-layered gradient background
+      const gradient1 = ctx.createRadialGradient(
+        width * (0.3 + Math.sin(time * 0.4) * 0.2),
+        height * (0.4 + Math.cos(time * 0.2) * 0.1),
         0,
-        width * 0.5,
-        height * 0.5,
-        Math.max(width, height) * 0.8
+        width * 0.3,
+        height * 0.3,
+        Math.max(width, height) * 0.6
       )
-      gradient.addColorStop(0, `rgba(99, 102, 241, ${0.15 + Math.sin(time) * 0.1})`)
-      gradient.addColorStop(0.3, `rgba(168, 85, 247, ${0.12 + Math.cos(time * 1.3) * 0.08})`)
-      gradient.addColorStop(0.6, `rgba(59, 130, 246, ${0.08 + Math.sin(time * 0.7) * 0.05})`)
-      gradient.addColorStop(1, `rgba(16, 185, 129, ${0.05 + Math.cos(time * 0.9) * 0.03})`)
+      gradient1.addColorStop(0, `rgba(99, 102, 241, ${0.2 + Math.sin(time) * 0.1})`)
+      gradient1.addColorStop(0.5, `rgba(168, 85, 247, ${0.15 + Math.cos(time * 1.1) * 0.08})`)
+      gradient1.addColorStop(1, `rgba(59, 130, 246, ${0.05 + Math.sin(time * 0.8) * 0.03})`)
 
-      ctx.fillStyle = gradient
+      const gradient2 = ctx.createRadialGradient(
+        width * (0.7 + Math.cos(time * 0.6) * 0.2),
+        height * (0.6 + Math.sin(time * 0.4) * 0.1),
+        0,
+        width * 0.4,
+        height * 0.4,
+        Math.max(width, height) * 0.7
+      )
+      gradient2.addColorStop(0, `rgba(16, 185, 129, ${0.18 + Math.cos(time * 1.2) * 0.1})`)
+      gradient2.addColorStop(0.5, `rgba(139, 92, 246, ${0.12 + Math.sin(time * 0.9) * 0.06})`)
+      gradient2.addColorStop(1, `rgba(59, 130, 246, ${0.04 + Math.cos(time * 0.7) * 0.02})`)
+
+      // Base gradient
+      ctx.fillStyle = gradient1
       ctx.fillRect(0, 0, width, height)
 
-      // Enhanced animated particles with trails
-      for (let i = 0; i < 35; i++) {
-        const baseX = (Math.sin(time * 0.8 + i * 0.3) * 0.5 + 0.5) * width
-        const baseY = (Math.cos(time * 0.6 + i * 0.7) * 0.5 + 0.5) * height
-        const size = 1.5 + Math.sin(time * 3 + i) * 1.5
-        const opacity = 0.4 + Math.sin(time * 2 + i) * 0.3
+      // Blend the second gradient
+      ctx.globalCompositeOperation = 'screen'
+      ctx.fillStyle = gradient2
+      ctx.fillRect(0, 0, width, height)
+      ctx.globalCompositeOperation = 'source-over'
 
-        // Mouse interaction with stronger influence
-        const dx = mousePosition.x - baseX
-        const dy = mousePosition.y - baseY
-        const distance = Math.sqrt(dx * dx + dy * dy)
-        const influence = Math.max(0, 1 - distance / 150)
+      // Add noise texture
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.02 + Math.sin(time * 2) * 0.01})`
+      for (let i = 0; i < width * height * 0.0001; i++) {
+        const x = Math.random() * width
+        const y = Math.random() * height
+        ctx.fillRect(x, y, 1, 1)
+      }
 
-        const x = baseX + dx * influence * 0.3
-        const y = baseY + dy * influence * 0.3
+      // Quantum particle field system
+      for (let i = 0; i < 45; i++) {
+        const phase = time * 0.5 + i * 0.2
+        const baseX = (Math.sin(phase * 0.8) * 0.4 + 0.5) * width
+        const baseY = (Math.cos(phase * 0.6) * 0.4 + 0.5) * height
 
-        // Draw particle with glow effect
-        ctx.shadowColor = `rgba(99, 102, 241, ${opacity * 0.8})`
-        ctx.shadowBlur = 10 + influence * 15
-        ctx.beginPath()
-        ctx.arc(x, y, size + influence * 3, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(255, 255, 255, ${opacity + influence * 0.4})`
-        ctx.fill()
-        ctx.shadowBlur = 0
+        // Create particle trails
+        const trailLength = 5
+        for (let t = 0; t < trailLength; t++) {
+          const trailPhase = phase - t * 0.1
+          const trailX = (Math.sin(trailPhase * 0.8) * 0.4 + 0.5) * width
+          const trailY = (Math.cos(trailPhase * 0.6) * 0.4 + 0.5) * height
+          const trailOpacity = (0.3 + Math.sin(time * 2 + i) * 0.2) * (1 - t / trailLength)
+          const trailSize = (1 + Math.sin(time * 3 + i) * 0.8) * (1 - t / trailLength * 0.5)
 
-        // Add smaller accent particles
-        if (i % 3 === 0) {
+          // Mouse interaction
+          const dx = mousePosition.x - trailX
+          const dy = mousePosition.y - trailY
+          const distance = Math.sqrt(dx * dx + dy * dy)
+          const influence = Math.max(0, 1 - distance / 120)
+
+          const x = trailX + dx * influence * 0.2
+          const y = trailY + dy * influence * 0.2
+
+          // Quantum glow effect
+          const colors = [
+            `rgba(99, 102, 241, ${trailOpacity})`,
+            `rgba(168, 85, 247, ${trailOpacity})`,
+            `rgba(16, 185, 129, ${trailOpacity})`
+          ]
+
+          ctx.shadowColor = colors[i % 3]
+          ctx.shadowBlur = 8 + influence * 12
           ctx.beginPath()
-          ctx.arc(x + Math.sin(time * 4 + i) * 8, y + Math.cos(time * 4 + i) * 8, 0.5, 0, Math.PI * 2)
-          ctx.fillStyle = `rgba(168, 85, 247, ${opacity * 0.6})`
+          ctx.arc(x, y, trailSize + influence * 2, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(255, 255, 255, ${trailOpacity + influence * 0.3})`
           ctx.fill()
+          ctx.shadowBlur = 0
+
+          // Energy connections between particles
+          if (t === 0 && i % 4 === 0) {
+            const nextI = (i + 4) % 45
+            const nextPhase = time * 0.5 + nextI * 0.2
+            const nextX = (Math.sin(nextPhase * 0.8) * 0.4 + 0.5) * width
+            const nextY = (Math.cos(nextPhase * 0.6) * 0.4 + 0.5) * height
+
+            const connectionDistance = Math.sqrt((nextX - x) ** 2 + (nextY - y) ** 2)
+            if (connectionDistance < 200) {
+              ctx.strokeStyle = `rgba(99, 102, 241, ${0.1 + Math.sin(time + i) * 0.05})`
+              ctx.lineWidth = 1
+              ctx.beginPath()
+              ctx.moveTo(x, y)
+              ctx.lineTo(nextX, nextY)
+              ctx.stroke()
+            }
+          }
         }
+      }
+
+      // Neural synapse effect
+      for (let i = 0; i < 12; i++) {
+        const synapseX = width * (0.1 + (i % 4) * 0.25)
+        const synapseY = height * (0.2 + Math.floor(i / 4) * 0.3)
+        const pulse = Math.sin(time * 3 + i) * 0.5 + 0.5
+
+        // Create expanding ring
+        ctx.strokeStyle = `rgba(99, 102, 241, ${0.3 * pulse})`
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(synapseX, synapseY, 20 + pulse * 30, 0, Math.PI * 2)
+        ctx.stroke()
+
+        // Inner core
+        ctx.fillStyle = `rgba(168, 85, 247, ${0.6 + pulse * 0.4})`
+        ctx.beginPath()
+        ctx.arc(synapseX, synapseY, 3 + pulse * 2, 0, Math.PI * 2)
+        ctx.fill()
       }
 
       // Dynamic flowing energy waves
@@ -190,13 +261,124 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
   return (
     <div className="h-full bg-white overflow-y-auto">
-      {/* Hero Section with Shader Background */}
+      {/* Hero Section with Advanced Shader Background */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        {/* Background Canvas */}
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full"
           onMouseMove={handleMouseMove}
         />
+
+        {/* SVG Neural Network Overlay */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30" viewBox="0 0 1200 800">
+          <defs>
+            <linearGradient id="neuralGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.6"/>
+              <stop offset="50%" stopColor="#8B5CF6" stopOpacity="0.4"/>
+              <stop offset="100%" stopColor="#06B6D4" stopOpacity="0.3"/>
+            </linearGradient>
+
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+
+            <pattern id="circuit" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+              <path d="M10,10 L90,10 L90,50 L50,50 L50,90 L90,90" fill="none" stroke="url(#neuralGradient)" strokeWidth="0.5" opacity="0.3"/>
+              <circle cx="10" cy="10" r="2" fill="#3B82F6" opacity="0.5"/>
+              <circle cx="90" cy="50" r="1.5" fill="#8B5CF6" opacity="0.4"/>
+              <circle cx="50" cy="90" r="1" fill="#06B6D4" opacity="0.3"/>
+            </pattern>
+          </defs>
+
+          {/* Neural Network Nodes */}
+          <g className="animate-pulse">
+            {[...Array(12)].map((_, i) => (
+              <circle
+                key={i}
+                cx={100 + (i % 4) * 300}
+                cy={150 + Math.floor(i / 4) * 200}
+                r={4 + Math.sin(Date.now() * 0.001 + i) * 2}
+                fill="url(#neuralGradient)"
+                filter="url(#glow)"
+                opacity={0.7 + Math.sin(Date.now() * 0.002 + i) * 0.3}
+              >
+                <animate attributeName="r" values="2;8;2" dur={`${2 + i * 0.2}s`} repeatCount="indefinite"/>
+              </circle>
+            ))}
+          </g>
+
+          {/* Connecting Lines */}
+          <g stroke="url(#neuralGradient)" strokeWidth="1" fill="none" opacity="0.4">
+            <path d="M100,150 Q300,100 400,150" className="animate-pulse">
+              <animate attributeName="stroke-dasharray" values="0,1000;1000,0" dur="3s" repeatCount="indefinite"/>
+            </path>
+            <path d="M400,150 Q600,200 700,150">
+              <animate attributeName="stroke-dasharray" values="0,1000;1000,0" dur="3.5s" repeatCount="indefinite"/>
+            </path>
+            <path d="M700,150 Q900,100 1000,150">
+              <animate attributeName="stroke-dasharray" values="0,1000;1000,0" dur="4s" repeatCount="indefinite"/>
+            </path>
+            <path d="M100,350 Q300,300 400,350">
+              <animate attributeName="stroke-dasharray" values="0,1000;1000,0" dur="2.5s" repeatCount="indefinite"/>
+            </path>
+            <path d="M400,350 Q600,400 700,350">
+              <animate attributeName="stroke-dasharray" values="0,1000;1000,0" dur="3.2s" repeatCount="indefinite"/>
+            </path>
+            <path d="M700,350 Q900,300 1000,350">
+              <animate attributeName="stroke-dasharray" values="0,1000;1000,0" dur="4.2s" repeatCount="indefinite"/>
+            </path>
+            {/* Vertical connections */}
+            <path d="M250,150 Q200,250 250,350">
+              <animate attributeName="stroke-dasharray" values="1000,0;0,1000" dur="3.8s" repeatCount="indefinite"/>
+            </path>
+            <path d="M550,150 Q500,250 550,350">
+              <animate attributeName="stroke-dasharray" values="1000,0;0,1000" dur="3.3s" repeatCount="indefinite"/>
+            </path>
+            <path d="M850,150 Q800,250 850,350">
+              <animate attributeName="stroke-dasharray" values="1000,0;0,1000" dur="3.7s" repeatCount="indefinite"/>
+            </path>
+          </g>
+
+          {/* Circuit Pattern Overlay */}
+          <rect width="100%" height="100%" fill="url(#circuit)" opacity="0.1"/>
+
+          {/* Data Flow Particles */}
+          <g>
+            {[...Array(8)].map((_, i) => (
+              <circle key={i} r="2" fill="#3B82F6" opacity="0.8">
+                <animateMotion dur={`${3 + i * 0.5}s`} repeatCount="indefinite">
+                  <path d={`M${100 + i * 150},150 Q${300 + i * 100},${100 + i * 50} ${500 + i * 100},350`}/>
+                </animateMotion>
+                <animate attributeName="opacity" values="0;1;0" dur="1s" repeatCount="indefinite"/>
+              </circle>
+            ))}
+          </g>
+
+          {/* Floating Code Symbols */}
+          <g fontSize="12" fill="url(#neuralGradient)" opacity="0.3" fontFamily="monospace">
+            <text x="150" y="100">{'{ AI }'}</text>
+            <text x="350" y="80">{'<PRD/>'}</text>
+            <text x="650" y="120">{'()=>'}</text>
+            <text x="950" y="90">{'[...]'}</text>
+            <text x="200" y="450">{'async'}</text>
+            <text x="500" y="480">{'await'}</text>
+            <text x="800" y="460">{'gen()'}</text>
+
+            {/* Animate the symbols */}
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              values="0,0;0,-10;0,0"
+              dur="3s"
+              repeatCount="indefinite"
+            />
+          </g>
+        </svg>
 
         <div className="relative z-10 text-center max-w-4xl mx-auto px-6">
           <div className="mb-8 flex justify-center">
