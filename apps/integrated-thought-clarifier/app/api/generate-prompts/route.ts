@@ -46,7 +46,7 @@ Return only the JSON array with 3 suggestions prioritizing: clarity, completenes
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: modelId || 'gpt-4-turbo-preview',
+          model: modelId || 'gpt-4o',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }

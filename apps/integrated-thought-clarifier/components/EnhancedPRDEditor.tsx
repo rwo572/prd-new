@@ -513,7 +513,7 @@ export default function EnhancedPRDEditor({
                   if (editorRef.current && monacoRef.current) {
                     const model = editorRef.current.getModel()
                     if (model) {
-                      const position = model.getPositionAt(context.selectionStart + newContent.length)
+                      const position = model.getPositionAt((context.selectionStart || 0) + newContent.length)
                       editorRef.current.setPosition(position)
                       editorRef.current.revealLineInCenter(position.lineNumber)
                       editorRef.current.focus()
@@ -536,7 +536,6 @@ export default function EnhancedPRDEditor({
                 }
               }
             }}
-            onRegenerate={onGeneratePrototype}
             onClearChat={onClearMessages}
             streamingThought={streamingThought}
             streamingContent={streamingContent}

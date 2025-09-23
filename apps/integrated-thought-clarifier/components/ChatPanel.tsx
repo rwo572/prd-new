@@ -435,8 +435,8 @@ export default function ChatPanel({
                         ul: ({children}) => <ul className="list-disc pl-5 mb-2 space-y-1 break-words">{children}</ul>,
                         ol: ({children}) => <ol className="list-decimal pl-5 mb-2 space-y-1 break-words">{children}</ol>,
                         li: ({children}) => <li className="text-sm break-words">{children}</li>,
-                        code: ({inline, children}) => 
-                          inline ? (
+                        code: ({children, ...props}: any) =>
+                          props.inline ? (
                             <code className="px-1 py-0.5 bg-slate-100 rounded text-xs font-mono break-all">{children}</code>
                           ) : (
                             <code className="block p-3 bg-slate-100 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">{children}</code>
@@ -483,7 +483,7 @@ export default function ChatPanel({
                               // Restore previous content
                               if (onAcceptContent && undoContext.content) {
                                 // For undo, we replace the entire editor content with the previous content
-                                onAcceptContent(undoContext.content, { type: 'full', content: undoContext.content })
+                                onAcceptContent(undoContext.content, { type: 'full' })
                                 // Clear the action state and undo context
                                 setActionStates(prev => ({ ...prev, [message.id]: null }))
                                 setUndoContext(null)

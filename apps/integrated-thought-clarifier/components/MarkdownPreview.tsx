@@ -91,8 +91,8 @@ export default function MarkdownPreview({ content, className, onTextSelect }: Ma
                 {children}
               </blockquote>
             ),
-            code: ({ inline, children }) => {
-              if (inline) {
+            code: ({ children, ...props }: any) => {
+              if (props.inline) {
                 return (
                   <code className="px-1.5 py-0.5 bg-gray-100 text-purple-600 rounded text-sm font-mono">
                     {children}

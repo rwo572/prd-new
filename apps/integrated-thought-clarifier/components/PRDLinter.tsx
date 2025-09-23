@@ -629,7 +629,7 @@ export default function PRDLinter({
                     {isExpanded && (
                       <div className="divide-y divide-gray-100">
                         {categoryIssues.map((issue) => {
-                          const issueId = issue.id || `${issue.ruleId}-${Math.random()}`
+                          const issueId = `${issue.ruleId}-${Math.random()}`
                           const isHovered = hoveredIssue === issueId
                           
                           return (

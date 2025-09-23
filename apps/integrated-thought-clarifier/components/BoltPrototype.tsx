@@ -1339,7 +1339,7 @@ export default App`;
               // Remove any ReactDOM.render() or ReactDOM.createRoot() calls as they belong in main.jsx, not App.jsx
               // Remove all ReactDOM references completely
               finalCode = finalCode.replace(
-                /ReactDOM\.(createRoot|render|hydrate|unmountComponentAtNode)[^;]*;/gs,
+                /ReactDOM\.(createRoot|render|hydrate|unmountComponentAtNode)[^;]*;/g,
                 "",
               );
               finalCode = finalCode.replace(/ReactDOM\./g, "// ReactDOM.");

@@ -10,7 +10,7 @@ interface SuggestionContext {
 export class AISuggestionService {
   private static instance: AISuggestionService
   private apiKey: string | null = null
-  private model: string = 'claude-3-haiku-20240307'
+  private model: string = 'claude-3-5-haiku-20241022'
 
   private constructor() {}
 

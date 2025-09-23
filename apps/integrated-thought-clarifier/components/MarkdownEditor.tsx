@@ -228,7 +228,12 @@ export default function MarkdownEditor({
     setLastGenerationTime(now)
     setMessageIndex(0)
     setGenerationMessage('Starting prototype generation... This may take 2-3 minutes.')
-    
+
+    // Declare interval variables in outer scope
+    let keepAliveInterval: NodeJS.Timeout | null = null
+    let progressInterval: NodeJS.Timeout | null = null
+    let elapsedSeconds = 0
+
     try {
       console.log('=== STARTING PROTOTYPE GENERATION ===')
       console.log('Time:', new Date().toISOString())
@@ -237,9 +242,6 @@ export default function MarkdownEditor({
       console.log('API key present:', !!anthropicApiKey)
       
       // Keep the tab active to prevent network suspension
-      let keepAliveInterval: NodeJS.Timeout | null = null
-      let progressInterval: NodeJS.Timeout | null = null
-      let elapsedSeconds = 0
       
       // Start keep-alive mechanism
       keepAliveInterval = setInterval(() => {

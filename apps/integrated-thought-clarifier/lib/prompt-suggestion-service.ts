@@ -43,7 +43,7 @@ export async function generatePromptSuggestions(
     
   const provider = selectedModel?.provider || (apiKeys.anthropic ? 'anthropic' : 'openai')
   const apiKey = provider === 'anthropic' ? apiKeys.anthropic : apiKeys.openai
-  const modelId = selectedModel?.id || (provider === 'anthropic' ? 'claude-3-haiku-20240307' : 'gpt-3.5-turbo')
+  const modelId = selectedModel?.id || (provider === 'anthropic' ? 'claude-3-5-haiku-20241022' : 'gpt-4o-mini')
 
   if (!apiKey) {
     return getQuickPromptSuggestions(selectedText).slice(0, 3)

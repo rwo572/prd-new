@@ -17,8 +17,8 @@ export default function ModelSelector({ apiKeys, onModelChange }: ModelSelectorP
   useEffect(() => {
     // Set default model based on active provider
     if (!apiKeys.selectedModel) {
-      const defaultModel = AI_MODELS.find(m => 
-        m.provider === apiKeys.activeProvider && m.id === 'claude-3-5-sonnet-20241022'
+      const defaultModel = AI_MODELS.find(m =>
+        m.provider === apiKeys.activeProvider && m.id === 'claude-sonnet-4-20250514'
       ) || AI_MODELS.find(m => m.provider === apiKeys.activeProvider)
       
       if (defaultModel) {

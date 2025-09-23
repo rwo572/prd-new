@@ -80,7 +80,7 @@ async function streamAnthropicResponse(
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: modelId || 'claude-3-haiku-20240307',
+      model: modelId || 'claude-3-5-haiku-20241022',
       max_tokens: 4000,
       messages: [
         {
@@ -164,7 +164,7 @@ async function streamOpenAIResponse(
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: modelId || 'gpt-4-turbo-preview',
+      model: modelId || 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { 

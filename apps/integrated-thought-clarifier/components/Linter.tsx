@@ -206,7 +206,7 @@ export default function Linter({
   // Handle AI suggestion generation
   const generateAISuggestions = useCallback(async (issue: LintIssue) => {
     // Use the unique issue ID instead of ruleId to store suggestions
-    const issueKey = issue.id || issue.ruleId
+    const issueKey = issue.ruleId
     if (!anthropicApiKey || loadingSuggestions.has(issueKey)) return
     
     setLoadingSuggestions(prev => new Set(prev).add(issueKey))
@@ -283,7 +283,7 @@ export default function Linter({
     }
     
     // Track the change
-    const isAISuggestion = aiSuggestions[issue.id || issue.ruleId]?.some(s => s.text === suggestion)
+    const isAISuggestion = aiSuggestions[issue.ruleId]?.some(s => s.text === suggestion)
     setAppliedChanges(prev => [...prev, {
       id: `change-${Date.now()}`,
       timestamp: Date.now(),
@@ -329,7 +329,7 @@ export default function Linter({
   // Calculate scoring with memoization
   const scoring = useMemo(() => {
     if (!report) return null
-    const activeIssues = report.issues.filter(i => !dismissedIssues.has(i.id || i.ruleId))
+    const activeIssues = report.issues.filter(i => !dismissedIssues.has(i.ruleId))
     return calculateQualityScore(activeIssues, ALL_LINTER_RULES.length, report.isAIProduct)
   }, [report, dismissedIssues])
   
@@ -346,7 +346,7 @@ export default function Linter({
     }
     
     report.issues
-      .filter(issue => !dismissedIssues.has(issue.id || issue.ruleId))
+      .filter(issue => !dismissedIssues.has(issue.ruleId))
       .forEach(issue => {
         const category = issue.category || 'technical'
         if (grouped[category]) {
@@ -373,7 +373,7 @@ export default function Linter({
     const appliedRules = new Set<string>()
     
     report.issues
-      .filter(issue => issue.autoFixable && !dismissedIssues.has(issue.id || issue.ruleId))
+      .filter(issue => issue.autoFixable && !dismissedIssues.has(issue.ruleId))
       .forEach(issue => {
         if (!appliedRules.has(issue.ruleId)) {
           const template = getAutoFixTemplate(issue.ruleId)
@@ -394,7 +394,7 @@ export default function Linter({
   const handleDismissAll = useCallback(() => {
     if (!report) return
     
-    const allIds = report.issues.map(i => i.id || i.ruleId)
+    const allIds = report.issues.map(i => i.ruleId)
     setDismissedIssues(new Set(allIds))
   }, [report])
   
@@ -408,9 +408,9 @@ export default function Linter({
   }
   
   // Get counts for high priority issues
-  const errorCount = report?.issues.filter(i => i.severity === 'error' && !dismissedIssues.has(i.id || i.ruleId)).length || 0
-  const warningCount = report?.issues.filter(i => i.severity === 'warning' && !dismissedIssues.has(i.id || i.ruleId)).length || 0
-  const fixableCount = report?.issues.filter(i => i.autoFixable && !dismissedIssues.has(i.id || i.ruleId)).length || 0
+  const errorCount = report?.issues.filter(i => i.severity === 'error' && !dismissedIssues.has(i.ruleId)).length || 0
+  const warningCount = report?.issues.filter(i => i.severity === 'warning' && !dismissedIssues.has(i.ruleId)).length || 0
+  const fixableCount = report?.issues.filter(i => i.autoFixable && !dismissedIssues.has(i.ruleId)).length || 0
   
   return (
     <div className={cn("flex flex-col h-full bg-slate-50", className)}>
@@ -566,12 +566,12 @@ export default function Linter({
                   {issues.map((issue, index) => {
                     const severity = SEVERITY_STYLES[issue.severity]
                     const SeverityIcon = severity.icon
-                    const issueKey = issue.id || issue.ruleId
+                    const issueKey = issue.ruleId
                     const hasAiSuggestions = aiSuggestions[issueKey]?.length > 0
                     
                     return (
                       <div
-                        key={issue.id || issue.ruleId}
+                        key={issue.ruleId}
                         className={cn(
                           "px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer",
                           severity.borderColor,
@@ -630,7 +630,7 @@ export default function Linter({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  handleDismissIssue(issue.id || issue.ruleId)
+                                  handleDismissIssue(issue.ruleId)
                                 }}
                                 className="px-3 py-1.5 text-slate-500 hover:text-slate-700 text-xs transition-colors"
                               >
