@@ -250,8 +250,9 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-white">
-      {/* Collapsed Sidebar - Icons Only */}
-      <div className="w-16 bg-white/80 backdrop-blur-sm border-r border-slate-200/50 flex flex-col items-center py-4">
+      {/* Collapsed Sidebar - Icons Only - Hidden on Landing Page */}
+      {activeTab !== 'landing' && (
+        <div className="w-16 bg-white/80 backdrop-blur-sm border-r border-slate-200/50 flex flex-col items-center py-4">
         <div className="mb-8 flex items-center justify-center">
           <button
             onClick={() => setActiveTab(activeTab === 'landing' ? 'editor' : 'landing')}
@@ -324,7 +325,8 @@ export default function Home() {
             </span>
           </button>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">

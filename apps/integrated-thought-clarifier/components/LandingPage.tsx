@@ -256,9 +256,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
   ]
 
   return (
-    <div className="h-full bg-white overflow-y-auto">
-      {/* Hero Section with Advanced Shader Background */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+    <div className="h-full bg-gray-50 overflow-y-auto">
+      {/* Hero Section with Cursor-inspired Design */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white border-b border-gray-100">
         {/* Background Canvas */}
         <canvas
           ref={canvasRef}
@@ -376,34 +376,57 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </g>
         </svg>
 
-        <div className="relative z-10 text-center max-w-4xl mx-auto px-6">
-          <div className="mb-8 flex justify-center">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-blue-600 shadow-2xl">
-              <Bot className="w-10 h-10 text-white" />
+        <div className="relative z-10 max-w-6xl mx-auto px-6 py-20">
+          <div className="text-center mb-16">
+            <div className="mb-12 flex justify-center">
+              <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-gray-900 shadow-lg">
+                <Bot className="w-8 h-8 text-white" />
+              </div>
+            </div>
+
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-medium text-gray-900 mb-8 tracking-tight leading-tight" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
+              Spec-driven development for
+              <br />
+              <span className="text-gray-600">AI products that work</span>
+            </h1>
+
+            <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
+              From idea to working prototype in minutes. prd.dev guides you through AI-native product development with intelligent PRD creation, safety compliance, and one-click prototyping.
+            </p>
+
+            <div className="flex flex-col gap-4 justify-center items-center">
+              <button
+                onClick={onGetStarted}
+                className="px-8 py-4 bg-gray-900 text-white rounded-lg font-medium text-lg hover:bg-gray-800 transition-all duration-200 flex items-center gap-2 group"
+              >
+                Get started <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+              <div className="flex items-center gap-2 text-gray-500 text-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                AI-native and privacy-first
+              </div>
             </div>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-slate-800 via-indigo-600 to-blue-600 bg-clip-text text-transparent mb-6 tracking-wide" style={{ fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", "Monaco", "Consolas", monospace' }}>
-            prd.dev
-          </h1>
-
-          <p className="text-xl md:text-2xl text-slate-600 mb-4 leading-relaxed">
-            <span className="font-bold text-indigo-700">For AI-Native Product Builders</span>
-            <br />
-            Transform your AI product ideas into working prototypes through intelligent PRD creation.
-          </p>
-
-          <p className="text-lg text-slate-500 mb-8">
-            <span className="font-semibold">Privacy-first. Git-native. AI-optimized.</span>
-          </p>
-
-          <div className="flex justify-center">
-            <button
-              onClick={onGetStarted}
-              className="px-10 py-5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl font-semibold text-xl hover:from-indigo-700 hover:to-blue-700 transition-all duration-200 shadow-xl hover:shadow-2xl hover:scale-105 flex items-center gap-3 group"
-            >
-              Start Building <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-            </button>
+          {/* Code Preview */}
+          <div className="bg-gray-900 rounded-xl p-6 shadow-2xl max-w-4xl mx-auto">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div className="ml-4 text-gray-400 text-sm font-mono">my-ai-app.prd</div>
+            </div>
+            <div className="font-mono text-sm text-gray-300 space-y-2">
+              <div><span className="text-purple-400"># AI-Native Chat Application</span></div>
+              <div><span className="text-blue-400">model:</span> claude-3-sonnet</div>
+              <div><span className="text-blue-400">safety_guardrails:</span> <span className="text-green-400">enabled</span></div>
+              <div><span className="text-blue-400">data_retention:</span> <span className="text-yellow-400">"0 days"</span></div>
+              <div><span className="text-blue-400">fallback_strategy:</span> <span className="text-yellow-400">"graceful_degradation"</span></div>
+              <div className="pt-2"><span className="text-purple-400">## Features</span></div>
+              <div><span className="text-gray-500">- Streaming responses with typing indicators</span></div>
+              <div><span className="text-gray-500">- Hallucination detection and warnings</span></div>
+              <div><span className="text-gray-500">- Context window management</span></div>
+            </div>
           </div>
         </div>
 
@@ -416,40 +439,45 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 px-6 bg-slate-50">
+      <section className="py-24 px-6 bg-white border-b border-gray-100">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center text-slate-800 mb-16 tracking-tight" style={{ fontFamily: '"JetBrains Mono", "Fira Code", monospace', fontVariationSettings: '"wght" 700' }}>
-            From AI Product Idea to Prototype in Minutes
-          </h2>
+          <div className="text-center mb-20">
+            <h2 className="text-3xl md:text-4xl font-medium text-gray-900 mb-6 tracking-tight" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
+              Ship AI products faster
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              From idea to working prototype with AI-specific quality checks and safety guardrails built in.
+            </p>
+          </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Sparkles className="w-8 h-8 text-indigo-600" />
+          <div className="grid md:grid-cols-3 gap-12">
+            <div className="text-left">
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-6">
+                <Sparkles className="w-6 h-6 text-gray-700" />
               </div>
-              <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: '"Outfit", "Inter", system-ui, sans-serif' }}>1. AI-Native Discovery</h3>
-              <p className="text-slate-600">
-                Our AI asks specialized questions about LLM selection, safety guardrails, prompt engineering, and AI-specific requirements to clarify your vision.
+              <h3 className="text-lg font-medium text-gray-900 mb-3" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>AI-Native Discovery</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Specialized questioning for LLM selection, safety guardrails, and prompt engineering to clarify your AI product vision.
               </p>
             </div>
 
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <FileText className="w-8 h-8 text-purple-600" />
+            <div className="text-left">
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-6">
+                <FileText className="w-6 h-6 text-gray-700" />
               </div>
-              <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: '"Outfit", "Inter", system-ui, sans-serif' }}>2. AI-Optimized PRD</h3>
-              <p className="text-slate-600">
-                Generate PRDs with 40+ AI-specific quality rules covering model specifications, bias mitigation, hallucination prevention, and privacy compliance.
+              <h3 className="text-lg font-medium text-gray-900 mb-3" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>Intelligent Linting</h3>
+              <p className="text-gray-600 leading-relaxed">
+                40+ AI-specific quality rules covering model specs, bias mitigation, hallucination prevention, and privacy compliance.
               </p>
             </div>
 
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Code2 className="w-8 h-8 text-blue-600" />
+            <div className="text-left">
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-6">
+                <Code2 className="w-6 h-6 text-gray-700" />
               </div>
-              <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: '"Outfit", "Inter", system-ui, sans-serif' }}>3. AI-Ready Prototype</h3>
-              <p className="text-slate-600">
-                Transform your AI product PRD into working prototypes with integrated AI capabilities, streaming responses, and error handling.
+              <h3 className="text-lg font-medium text-gray-900 mb-3" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>One-Click Prototypes</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Transform PRDs into working prototypes with integrated AI capabilities, streaming responses, and error handling.
               </p>
             </div>
           </div>
@@ -457,18 +485,23 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       </section>
 
       {/* Features Grid */}
-      <section className="py-20 px-6">
+      <section className="py-24 px-6 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-extrabold text-center text-slate-800 mb-16 tracking-tight" style={{ fontFamily: '"Clash Display", "Space Grotesk", system-ui, sans-serif', fontVariationSettings: '"wght" 800' }}>
-            Built for AI Product Teams
-          </h2>
+          <div className="text-center mb-20">
+            <h2 className="text-3xl md:text-4xl font-medium text-gray-900 mb-6 tracking-tight" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
+              Everything you need for AI products
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Purpose-built tools for teams shipping AI-native applications, agents, and services.
+            </p>
+          </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <div key={index} className="p-6 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-200">
-                <feature.icon className="w-8 h-8 text-indigo-600 mb-4" />
-                <h3 className="text-xl font-semibold mb-3" style={{ fontFamily: '"Satoshi", "Inter", system-ui, sans-serif' }}>{feature.title}</h3>
-                <p className="text-slate-600">{feature.description}</p>
+              <div key={index} className="p-6 bg-white rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200">
+                <feature.icon className="w-6 h-6 text-gray-700 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-3" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>{feature.title}</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -476,57 +509,57 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       </section>
 
       {/* Privacy Focus */}
-      <section className="py-20 px-6 bg-gradient-to-r from-slate-800 to-slate-900 text-white">
+      <section className="py-24 px-6 bg-white border-b border-gray-100">
         <div className="max-w-4xl mx-auto text-center">
-          <Shield className="w-16 h-16 text-indigo-400 mx-auto mb-8" />
-          <h2 className="text-4xl font-bold mb-8 tracking-tight" style={{ fontFamily: '"Clash Display", "Space Grotesk", system-ui, sans-serif' }}>Privacy by Design</h2>
-          <p className="text-xl text-slate-300 mb-12 leading-relaxed">
-            Your competitive AI ideas deserve protection. We built prd.dev
-            with zero data retention - everything stays in your browser and your GitHub repositories.
-            Bring your own API keys, own your data.
+          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-8">
+            <Shield className="w-6 h-6 text-gray-700" />
+          </div>
+          <h2 className="text-3xl md:text-4xl font-medium text-gray-900 mb-6 tracking-tight" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>Privacy by design</h2>
+          <p className="text-lg text-gray-600 mb-16 leading-relaxed max-w-2xl mx-auto">
+            Your competitive AI ideas deserve protection. Everything runs locally in your browser with zero data retention.
           </p>
 
-          <div className="grid md:grid-cols-2 gap-8 text-left">
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-indigo-400" style={{ fontFamily: '"Satoshi", "Inter", system-ui, sans-serif' }}>What we never store:</h3>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                  Your PRD content
+          <div className="grid md:grid-cols-2 gap-12 text-left">
+            <div className="space-y-6">
+              <h3 className="text-lg font-medium text-gray-900" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>We never see</h3>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-gray-600">Your PRD content</span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                  API keys or credentials
+                <li className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-gray-600">API keys or credentials</span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                  Chat conversations
+                <li className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-gray-600">Generated prototypes</span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                  Generated prototypes
+                <li className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-gray-600">Chat conversations</span>
                 </li>
               </ul>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-indigo-400" style={{ fontFamily: '"Satoshi", "Inter", system-ui, sans-serif' }}>What you control:</h3>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-green-400" />
-                  Local browser storage
+            <div className="space-y-6">
+              <h3 className="text-lg font-medium text-gray-900" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>You control</h3>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <span className="text-gray-600">Local browser storage</span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-green-400" />
-                  Your GitHub repositories
+                <li className="flex items-center gap-3">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <span className="text-gray-600">Your GitHub repositories</span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-green-400" />
-                  Direct AI provider access
+                <li className="flex items-center gap-3">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <span className="text-gray-600">Direct AI provider access</span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-green-400" />
-                  Complete data portability
+                <li className="flex items-center gap-3">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <span className="text-gray-600">Complete data portability</span>
                 </li>
               </ul>
             </div>
@@ -535,19 +568,19 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       </section>
 
       {/* Benefits */}
-      <section className="py-20 px-6 bg-slate-50">
+      <section className="py-24 px-6 bg-gray-50">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl font-extrabold text-center text-slate-800 mb-16 tracking-tight" style={{ fontFamily: '"Clash Display", "Space Grotesk", system-ui, sans-serif' }}>
+          <h2 className="text-3xl md:text-4xl font-medium text-center text-gray-900 mb-16 tracking-tight" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
             Why AI Product Teams Choose prd.dev
           </h2>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {benefits.map((benefit, index) => (
-              <div key={index} className="flex items-center gap-4 p-6 bg-white rounded-xl border border-slate-200">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <Check className="w-5 h-5 text-green-600" />
+              <div key={index} className="flex items-center gap-4 p-6 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-all duration-200">
+                <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Check className="w-4 h-4 text-gray-700" />
                 </div>
-                <span className="text-lg text-slate-700">{benefit}</span>
+                <span className="text-lg text-gray-700 leading-relaxed">{benefit}</span>
               </div>
             ))}
           </div>
@@ -555,18 +588,18 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       </section>
 
       {/* CTA */}
-      <section className="py-20 px-6 bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
+      <section className="py-24 px-6 bg-white border-t border-gray-100">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-8 tracking-tight" style={{ fontFamily: '"Clash Display", "Space Grotesk", system-ui, sans-serif' }}>Ready to Transform Your Product Process?</h2>
-          <p className="text-xl mb-12 text-indigo-100">
+          <h2 className="text-3xl md:text-4xl font-medium mb-6 tracking-tight text-gray-900" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>Ready to Transform Your Product Process?</h2>
+          <p className="text-lg mb-12 text-gray-600 max-w-2xl mx-auto leading-relaxed">
             Join hundreds of AI product teams already shipping faster with specialized PRD tooling.
           </p>
 
           <button
             onClick={onGetStarted}
-            className="px-12 py-4 bg-white text-indigo-600 rounded-xl font-semibold text-lg hover:bg-slate-50 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="px-8 py-4 bg-gray-900 text-white rounded-lg font-medium text-lg hover:bg-gray-800 transition-all duration-200 flex items-center gap-2 mx-auto group"
           >
-            Start Your First PRD
+            Start Your First PRD <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
       </section>
