@@ -325,6 +325,33 @@ export default function ChatPanel({
               <Bot className="w-8 h-8 text-white" />
             </div>
             <h3 className="text-sm font-medium text-slate-900 mb-2">AI Chat Assistant</h3>
+
+            {/* API Key Notice */}
+            {(!apiKeys?.openai && !apiKeys?.anthropic) && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg max-w-sm mx-auto">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <span className="text-xs font-semibold text-amber-800">API Key Required</span>
+                </div>
+                <p className="text-xs text-amber-700 mb-2">
+                  Add your OpenAI or Anthropic API key in Settings to unlock full AI capabilities.
+                </p>
+                <button
+                  onClick={() => {
+                    // Assuming there's a way to navigate to settings - this might need to be passed as a prop
+                    // For now, we'll show a message
+                    const settingsBtn = document.querySelector('[title="Settings"]') as HTMLElement;
+                    if (settingsBtn) {
+                      settingsBtn.click();
+                    }
+                  }}
+                  className="text-xs text-amber-600 hover:text-amber-800 underline font-medium"
+                >
+                  Go to Settings →
+                </button>
+              </div>
+            )}
+
             <p className="text-xs text-slate-500 mb-4">
               I can help you create or improve your PRD. Choose:
             </p>
