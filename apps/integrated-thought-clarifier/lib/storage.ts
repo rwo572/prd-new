@@ -27,7 +27,7 @@ let db: IDBPDatabase<PRDDB> | null = null
 
 async function getDB() {
   if (!db) {
-    db = await openDB<PRDDB>('integrated-thought-clarifier', 1, {
+    db = await openDB<PRDDB>('prd-dev', 1, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('prds')) {
           db.createObjectStore('prds', { keyPath: 'id' })

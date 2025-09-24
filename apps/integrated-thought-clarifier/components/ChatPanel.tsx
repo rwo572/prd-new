@@ -431,7 +431,7 @@ export default function ChatPanel({
                     ? 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-slate-800'
                     : message.isMarkdown
                     ? 'bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 text-slate-800'
-                    : 'bg-white border border-slate-200 text-slate-800'
+                    : 'bg-gradient-to-r from-slate-50 to-gray-50 border border-slate-200 text-slate-800'
                 )}
               >
                 {message.isImprovements && (

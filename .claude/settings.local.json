@@ -37,7 +37,11 @@
       "WebFetch(domain:platform.openai.com)",
       "Bash(lsof:*)",
       "Bash(npx vercel:*)",
-      "Bash(sh)"
+      "Bash(sh)",
+      "Bash(cat:*)",
+      "WebFetch(domain:cursor.com)",
+      "Bash(sudo chown:*)",
+      "Bash(pnpm dlx:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,10 +1,10 @@
-# Integrated Thought Clarifier
+# PRD Dev
 
 > Transform ideas into prototype-ready PRDs with AI-powered guidance
 
 ## Overview
 
-The Integrated Thought Clarifier is a privacy-first tool that helps product managers, founders, and engineers create comprehensive Product Requirements Documents (PRDs) through AI-guided conversations. It treats PRDs as code - versionable, trackable, and directly executable into working prototypes.
+PRD Dev is a privacy-first tool that helps product managers, founders, and engineers create comprehensive Product Requirements Documents (PRDs) through AI-guided conversations. It treats PRDs as code - versionable, trackable, and directly executable into working prototypes.
 
 ## Key Features
 
@@ -28,8 +28,8 @@ The Integrated Thought Clarifier is a privacy-first tool that helps product mana
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/integrated-thought-clarifier.git
-cd integrated-thought-clarifier
+git clone https://github.com/yourusername/prd-dev.git
+cd prd-dev
 ```
 
 2. Install dependencies:
@@ -102,7 +102,7 @@ graph LR
 ### Project Structure
 
 ```
-integrated-thought-clarifier/
+prd-dev/
 ├── app/                    # Next.js app directory
 │   ├── layout.tsx         # Root layout
 │   ├── page.tsx           # Main application
@@ -153,7 +153,7 @@ npm run start
 
 3. Use a process manager like PM2 for production:
 ```bash
-pm2 start npm --name "thought-clarifier" -- start
+pm2 start npm --name "prd-dev" -- start
 ```
 
 ## Contributing
@@ -167,8 +167,8 @@ MIT License - see [LICENSE](LICENSE) for details
 ## Support
 
 - **Documentation**: [docs/](./docs)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/integrated-thought-clarifier/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/integrated-thought-clarifier/discussions)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/prd-dev/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/prd-dev/discussions)
 
 ## Acknowledgments
 

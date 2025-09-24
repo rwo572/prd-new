@@ -28,7 +28,7 @@ export default function Home() {
   // Use localStorage hooks - will only work on client
   const [messages, setMessages] = useLocalStorage<Message[]>('prd-messages', [])
   const [prdContent, setPrdContent] = useLocalStorage<string>('prd-content', '')
-  const [currentProject, setCurrentProject] = useLocalStorage<string>('prd-project-name', 'untitled')
+  const [currentProject, setCurrentProject] = useLocalStorage<string>('prd-project-name', 'my-ai-specs')
   const [apiKeys, setApiKeys] = useLocalStorage<ApiKeys>('api-keys', {
     openai: '',
     anthropic: '',
