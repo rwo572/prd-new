@@ -69,106 +69,45 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
       if (!isDragging) return
 
       const deltaX = e.clientX - startX
-      
+
       // Work with visible panels only - check by ID, not content
       const visiblePanels = panels.filter(p => p && p.id)
       const panelIndex = visiblePanels.findIndex(p => p.id === isDragging)
-      
-      if (panelIndex === -1) return
+
+      if (panelIndex === -1) {
+        return
+      }
 
       const panel = visiblePanels[panelIndex]
       const nextPanel = visiblePanels[panelIndex + 1]
-      
-      if (!nextPanel) return
+
+      if (!nextPanel) {
+        return
+      }
 
       const currentWidth = startWidths[panel.id] || panel.defaultWidth || 300
       const nextWidth = startWidths[nextPanel.id] || nextPanel.defaultWidth || 300
-      
-      // Get container width
-      const containerWidth = containerRef.current?.clientWidth || 1200
-      
-      // Calculate the total width available for these two panels
-      const totalWidth = currentWidth + nextWidth
-      
+
       // Calculate new widths based on drag
       let newCurrentWidth = currentWidth + deltaX
       let newNextWidth = nextWidth - deltaX
-      
-      
-      // Special handling when resizing between preview and chat panels
-      if ((panel.id === 'preview' && nextPanel.id === 'chat') || 
-          (panel.id === 'chat' && nextPanel.id === 'preview')) {
-        // Very minimal constraints to allow maximum flexibility
-        const absoluteMinWidth = 150 // Absolute minimum for any panel to remain usable
-        
-        // Only apply absolute minimum constraints
-        if (newCurrentWidth < absoluteMinWidth) {
-          newCurrentWidth = absoluteMinWidth
-          newNextWidth = totalWidth - newCurrentWidth
-        }
-        
-        if (newNextWidth < absoluteMinWidth) {
-          newNextWidth = absoluteMinWidth
-          newCurrentWidth = totalWidth - newNextWidth
-        }
-      } else if (nextPanel.id === 'chat' || panel.id === 'chat') {
-        // Chat with other panels (not preview) - use normal constraints
-        const panelMinWidth = panel.minWidth || 200
-        const panelMaxWidth = panel.maxWidth || containerWidth * 0.8
-        const nextPanelMinWidth = nextPanel.minWidth || 200
-        const nextPanelMaxWidth = nextPanel.maxWidth || containerWidth * 0.8
-        
-        // Apply constraints
-        newCurrentWidth = Math.max(panelMinWidth, Math.min(panelMaxWidth, newCurrentWidth))
-        newNextWidth = Math.max(nextPanelMinWidth, Math.min(nextPanelMaxWidth, newNextWidth))
-        
-        // Ensure total width is preserved
-        const totalAfter = newCurrentWidth + newNextWidth
-        const diff = totalWidth - totalAfter
-        
-        if (Math.abs(diff) > 0.1) {
-          // Adjust to maintain total width
-          if (newCurrentWidth === panelMinWidth) {
-            newNextWidth = totalWidth - newCurrentWidth
-          } else if (newNextWidth === nextPanelMinWidth) {
-            newCurrentWidth = totalWidth - newNextWidth
-          } else {
-            // Distribute the difference proportionally
-            const currentRatio = newCurrentWidth / totalAfter
-            newCurrentWidth += diff * currentRatio
-            newNextWidth = totalWidth - newCurrentWidth
-          }
-        }
-      } else {
-        // Normal resize for other panel combinations
-        const panelMinWidth = panel.minWidth || 200
-        const panelMaxWidth = panel.maxWidth || containerWidth * 0.8
-        const nextPanelMinWidth = nextPanel.minWidth || 200
-        const nextPanelMaxWidth = nextPanel.maxWidth || containerWidth * 0.8
-        
-        // Apply constraints
-        newCurrentWidth = Math.max(panelMinWidth, Math.min(panelMaxWidth, newCurrentWidth))
-        newNextWidth = Math.max(nextPanelMinWidth, Math.min(nextPanelMaxWidth, newNextWidth))
-        
-        // Ensure total width is preserved
-        const totalAfter = newCurrentWidth + newNextWidth
-        const diff = totalWidth - totalAfter
-        
-        if (Math.abs(diff) > 0.1) {
-          // Adjust to maintain total width
-          if (newCurrentWidth === panelMinWidth) {
-            newNextWidth = totalWidth - newCurrentWidth
-          } else if (newNextWidth === nextPanelMinWidth) {
-            newCurrentWidth = totalWidth - newNextWidth
-          } else {
-            // Distribute the difference proportionally
-            const currentRatio = newCurrentWidth / totalAfter
-            newCurrentWidth += diff * currentRatio
-            newNextWidth = totalWidth - newCurrentWidth
-          }
-        }
+
+      // Use configured panel minimum widths directly - no percentage constraints
+      const panelMinWidth = panel.minWidth || 50
+      const nextPanelMinWidth = nextPanel.minWidth || 50
+
+      // Only enforce minimums to keep panels usable
+      if (newCurrentWidth < panelMinWidth) {
+        newCurrentWidth = panelMinWidth
+        newNextWidth = (currentWidth + nextWidth) - newCurrentWidth
       }
-      
+
+      if (newNextWidth < nextPanelMinWidth) {
+        newNextWidth = nextPanelMinWidth
+        newCurrentWidth = (currentWidth + nextWidth) - newNextWidth
+      }
+
+      // Apply the new widths
       setWidths(prev => ({
         ...prev,
         [panel.id]: newCurrentWidth,
@@ -182,15 +121,19 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
       document.body.style.userSelect = ''
     }
 
+    const cleanup = () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
+
+      return cleanup
     }
+
+    return cleanup
   }, [isDragging, startX, startWidths, panels.map(p => p?.id).join(','), setWidths])
 
   // Filter out null panels but keep track of all panel IDs for consistent ordering
@@ -213,7 +156,8 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
             className="flex"
             style={{
               width: isLast ? 'auto' : `${width}px`,
-              flex: isLast ? '1 1 auto' : '0 0 auto'
+              flex: isLast ? '1 1 auto' : '0 0 auto',
+              minWidth: isLast ? `${panel.minWidth || 50}px` : undefined
             }}
           >
             <div className="flex-1 overflow-hidden">
@@ -223,29 +167,31 @@ export default function ResizablePanels({ panels, className, storageKey = 'panel
             {!isLast && (
               <div
                 className={cn(
-                  "w-3 bg-slate-200 hover:bg-indigo-400 cursor-col-resize transition-all duration-200 relative group flex items-center justify-center flex-shrink-0",
-                  isDragging === panel.id && "bg-indigo-500"
+                  "w-2 bg-gray-200 hover:bg-gray-300 cursor-col-resize transition-all duration-200 relative group flex items-center justify-center flex-shrink-0",
+                  isDragging === panel.id && "bg-gray-400"
                 )}
-                onMouseDown={(e) => handleMouseDown(e, panel.id)}
+                onMouseDown={(e) => {
+                  handleMouseDown(e, panel.id)
+                }}
                 title="Drag to resize"
-                style={{ touchAction: 'none' }} // Prevent touch scrolling interference
+                style={{
+                  touchAction: 'none',
+                  zIndex: 1000,
+                  position: 'relative'
+                }}
               >
-                {/* Resize handle visual indicator with larger hit area */}
-                <div 
-                  className="absolute inset-0 -left-2 -right-2 z-10" 
+                {/* Larger invisible hit area for easier dragging */}
+                <div
+                  className="absolute inset-0 -left-2 -right-2 cursor-col-resize"
+                  style={{ zIndex: 1001 }}
                   onMouseDown={(e) => {
+                    e.preventDefault()
                     e.stopPropagation()
                     handleMouseDown(e, panel.id)
                   }}
                 />
-                {/* Grip dots */}
-                <div className="flex flex-col gap-0.5 opacity-40 group-hover:opacity-70 transition-opacity pointer-events-none">
-                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
-                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
-                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
-                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
-                  <div className="w-1 h-1 bg-slate-600 rounded-full" />
-                </div>
+                {/* Visual indicator */}
+                <div className="w-1 h-4 bg-white rounded pointer-events-none opacity-60" />
               </div>
             )}
           </div>

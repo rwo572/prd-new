@@ -334,8 +334,8 @@ export default function EnhancedPRDEditor({
         </div>
       ),
       defaultWidth: 260,
-      minWidth: 150,
-      maxWidth: 600
+      minWidth: 100,
+      maxWidth: 800
     } : null,
     safeShowEditor ? {
       id: 'editor',
@@ -425,8 +425,8 @@ export default function EnhancedPRDEditor({
         </div>
       ),
       defaultWidth: 500,
-      minWidth: 200,
-      maxWidth: 1000
+      minWidth: 100,
+      maxWidth: 2000
     } : null,
     safeShowPreview ? {
       id: 'preview',
@@ -451,8 +451,8 @@ export default function EnhancedPRDEditor({
         </div>
       ),
       defaultWidth: 450,
-      minWidth: 200,
-      maxWidth: 800
+      minWidth: 100,
+      maxWidth: 1500
     } : null,
     safeShowLinter ? {
       id: 'linter',
@@ -469,8 +469,8 @@ export default function EnhancedPRDEditor({
         </div>
       ),
       defaultWidth: 320,
-      minWidth: 200,
-      maxWidth: 600
+      minWidth: 50,
+      maxWidth: 800
     } : null,
     safeShowChat ? {
       id: 'chat',
@@ -545,8 +545,8 @@ export default function EnhancedPRDEditor({
         </div>
       ),
       defaultWidth: 350,
-      minWidth: 250,
-      maxWidth: 800
+      minWidth: 50,
+      maxWidth: 1000
     } : null
   ].filter(Boolean), [
     safeShowOutline,
