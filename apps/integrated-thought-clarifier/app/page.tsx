@@ -255,9 +255,9 @@ export default function Home() {
         <div className="w-16 bg-white/80 backdrop-blur-sm border-r border-slate-200/50 flex flex-col items-center py-4">
         <div className="mb-8 flex items-center justify-center">
           <button
-            onClick={() => setActiveTab(activeTab === 'landing' ? 'editor' : 'landing')}
+            onClick={() => setActiveTab('landing')}
             className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-            title={activeTab === 'landing' ? 'Go to Editor' : 'Go to Home'}
+            title="Go to Home"
           >
             <Bot className="w-6 h-6 text-white" />
           </button>

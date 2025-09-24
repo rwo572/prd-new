@@ -391,7 +391,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-              From idea to working prototype in minutes. prd.dev guides you through AI-native product development with intelligent PRD creation, safety compliance, and one-click prototyping.
+              Empower product managers with spec-driven development for AI products. Transform product vision into detailed PRDs, ensure safety compliance, and validate concepts with working prototypes—all in one unified workflow.
             </p>
 
             <div className="flex flex-col gap-4 justify-center items-center">
