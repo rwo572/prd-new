@@ -385,13 +385,13 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-medium text-gray-900 mb-8 tracking-tight leading-tight" style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
-              Spec-driven development for
+              Launch AI products that
               <br />
-              <span className="text-gray-600">AI products that work</span>
+              <span className="text-gray-600">actually work</span>
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-              Empower product managers with spec-driven development for AI products. Transform product vision into detailed PRDs, ensure safety compliance, and validate concepts with working prototypes—all in one unified workflow.
+              Spec-driven development for product managers. Vision → PRDs → AI evals → safety compliance → working prototypes.
             </p>
 
             <div className="flex flex-col gap-4 justify-center items-center">
