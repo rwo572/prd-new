@@ -135,14 +135,14 @@ export function applyMarkdownAction(
     case 'taskList':
       if (selectedText) {
         const lines = selectedText.split('\n')
-        newText = lines.map((line: string) => `☐ ${line}`).join('\n')
+        newText = lines.map((line: string) => `- [ ] ${line}`).join('\n')
       } else {
-        newText = '☐ Task item'
+        newText = '- [ ] Task item'
         editor.setSelection({
           startLineNumber: position.lineNumber,
-          startColumn: position.column + 6,
+          startColumn: position.column + 8,
           endLineNumber: position.lineNumber,
-          endColumn: position.column + 15
+          endColumn: position.column + 17
         })
       }
       break

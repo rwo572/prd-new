@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 import { LintIssue } from '@/types/prd-linter'
 import { Message } from '@/types'
 import { applyMarkdownAction } from '@/lib/markdown-editor-actions'
+import { cleanTaskListFormatting } from '@/lib/ai-chat-service'
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
@@ -336,11 +337,13 @@ export default function EnhancedPRDEditor({
             selectionRange={selectionRange}
             onReplaceText={handleReplaceText}
             onAcceptContent={(newContent, context) => {
+              // Clean up task list formatting before insertion
+              const cleanedContent = cleanTaskListFormatting(newContent)
               if (context?.type === 'selection' && context.selectionStart !== undefined && context.selectionEnd !== undefined) {
                 // Replace the selected text with the new content
                 const before = content.substring(0, context.selectionStart)
                 const after = content.substring(context.selectionEnd)
-                const updatedContent = before + newContent + after
+                const updatedContent = before + cleanedContent + after
                 onChange(updatedContent)
 
                 // Highlight the inserted text
@@ -348,7 +351,7 @@ export default function EnhancedPRDEditor({
                   line: 0,
                   column: 0,
                   startOffset: context.selectionStart,
-                  endOffset: context.selectionStart + newContent.length
+                  endOffset: context.selectionStart + cleanedContent.length
                 })
 
                 // Clear highlight after 5 seconds
@@ -364,7 +367,7 @@ export default function EnhancedPRDEditor({
                   if (editorRef.current && monacoRef.current) {
                     const model = editorRef.current.getModel()
                     if (model) {
-                      const position = model.getPositionAt((context.selectionStart || 0) + newContent.length)
+                      const position = model.getPositionAt((context.selectionStart || 0) + cleanedContent.length)
                       editorRef.current.setPosition(position)
                       editorRef.current.revealLineInCenter(position.lineNumber)
                       editorRef.current.focus()
@@ -400,15 +403,15 @@ export default function EnhancedPRDEditor({
                   if (insertionPoint < content.length) {
                     const before = content.substring(0, insertionPoint)
                     const after = content.substring(insertionPoint)
-                    updatedContent = before + '\n\n' + newContent + '\n\n' + after
+                    updatedContent = before + '\n\n' + cleanedContent + '\n\n' + after
                   } else {
-                    updatedContent = content + '\n\n' + newContent
+                    updatedContent = content + '\n\n' + cleanedContent
                   }
 
                   onChange(updatedContent)
                 } else {
                   // If document is empty, just set the content
-                  onChange(newContent)
+                  onChange(cleanedContent)
                 }
 
                 // Show the editor if it's hidden

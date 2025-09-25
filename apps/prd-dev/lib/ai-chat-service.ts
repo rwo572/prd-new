@@ -30,6 +30,35 @@ interface ConversationContext {
 
 let conversationContext: ConversationContext = {}
 
+// Helper function to clean up task list formatting
+export function cleanTaskListFormatting(content: string): string {
+  console.log('🧹 Original content:', JSON.stringify(content.substring(0, 200)))
+
+  // Stage 1: Convert plain checkboxes to proper markdown format
+  content = content.replace(/^(\s*)\[\s*\]\s*/gm, '$1- [ ] ')
+
+  // Stage 2: Replace Unicode checkboxes with markdown checkboxes
+  content = content.replace(/^(\s*)☐\s*/gm, '$1- [ ] ')
+  content = content.replace(/^(\s*)[•\-\*]\s*☐\s*/gm, '$1- [ ] ')
+
+  // Stage 3: Fix bullet + checkbox combinations (most aggressive)
+  content = content.replace(/^(\s*)[•\*]\s*-\s*\[\s*\]\s*/gm, '$1- [ ] ')
+  content = content.replace(/^(\s*)[•\*]\s*\[\s*\]\s*/gm, '$1- [ ] ')
+
+  // Stage 4: Remove bullets that appear before already correct checkboxes
+  content = content.replace(/^(\s*)[•\*]\s+(-\s*\[\s*\])/gm, '$1$2')
+  content = content.replace(/^(\s*)([•\*])\s*(-\s*\[\s*\])/gm, '$1$3')
+
+  // Stage 5: Catch any other bullet patterns before checkboxes
+  content = content.replace(/^(\s*)([•\*·‣⁃▪▫◦‒–—―])\s*(-?\s*\[\s*\])/gm, '$1- [ ] ')
+
+  // Stage 6: Fix spacing and ensure proper checkbox format
+  content = content.replace(/^(\s*)-\s*\[\s*\]\s*/gm, '$1- [ ] ')
+
+  console.log('🧹 Cleaned content:', JSON.stringify(content.substring(0, 200)))
+  return content
+}
+
 export async function streamChatResponse(
   message: string,
   context: ChatContext | undefined,
@@ -114,7 +143,7 @@ After getting answers, I'll generate a comprehensive 0→1 PRD using our AI PRD 
 
 Please answer these questions, and I'll create your PRD.
 
-FORMATTING: For any task lists or checklists, use only ☐ (checkbox symbol) without bullet points. Format as "☐ Task" NOT "- [ ] Task".`
+CRITICAL FORMATTING: For task lists, use standard markdown format: "- [ ] Task description". NEVER add extra bullets before checkboxes. FORBIDDEN FORMATS: "• - [ ]", "* - [ ]", "• ☐". Use proper line breaks between tasks for readability.`
     } else if (mentions1toN) {
       systemPrompt = `You are an AI assistant helping create a 1→n (Scaling & Growth) PRD.
 
@@ -151,7 +180,7 @@ After getting answers, I'll generate a comprehensive 1→n PRD using our AI PRD 
 
 Please answer these questions, and I'll create your scaling PRD.
 
-FORMATTING: For any task lists or checklists, use only ☐ (checkbox symbol) without bullet points. Format as "☐ Task" NOT "- [ ] Task".`
+CRITICAL FORMATTING: For task lists, use standard markdown format: "- [ ] Task description". NEVER add extra bullets before checkboxes. FORBIDDEN FORMATS: "• - [ ]", "* - [ ]", "• ☐". Use proper line breaks between tasks for readability.`
     } else if (mentionsNtoX) {
       systemPrompt = `You are an AI assistant helping create an n→x (Optimization & Differentiation) PRD.
 
@@ -192,7 +221,7 @@ After getting answers, I'll generate a comprehensive n→x PRD using our AI PRD 
 
 Please answer these questions, and I'll create your optimization PRD.
 
-FORMATTING: For any task lists or checklists, use only ☐ (checkbox symbol) without bullet points. Format as "☐ Task" NOT "- [ ] Task".`
+CRITICAL FORMATTING: For task lists, use standard markdown format: "- [ ] Task description". NEVER add extra bullets before checkboxes. FORBIDDEN FORMATS: "• - [ ]", "* - [ ]", "• ☐". Use proper line breaks between tasks for readability.`
     } else {
       systemPrompt = `You are an AI assistant helping to improve a Product Requirements Document (PRD).
 
@@ -223,9 +252,13 @@ IMPORTANT:
 - The [MARKDOWN_CHANGES] section should be the actual markdown to insert
 - Always include both sections separated by the markers shown above
 
-FORMATTING RULES:
-- For task lists and checklists, use ONLY the checkbox symbol ☐ (without bullet points)
-- Format: "☐ Task description" NOT "- [ ] Task description"
+CRITICAL FORMATTING RULES - MUST FOLLOW EXACTLY:
+- For task lists and checklists, use standard markdown format: "- [ ] Task description"
+- NEVER add extra bullets before checkboxes
+- FORBIDDEN FORMATS: "• - [ ]", "* - [ ]", "• ☐"
+- CORRECT FORMAT: "- [ ] Task description" with proper line breaks
+- Example: "- [ ] Set up development environment" NOT "• - [ ] Set up development environment"
+- Use proper line breaks between tasks for readability
 - For user stories, use numbered lists or bullets, NOT checkboxes
 - Keep formatting clean and readable`
     }
@@ -364,7 +397,8 @@ FORMATTING RULES:
 
               if (parsed.content) {
                 fullResponse += parsed.content
-                callbacks.onContent?.(fullResponse)
+                const cleanedResponse = cleanTaskListFormatting(fullResponse)
+                callbacks.onContent?.(cleanedResponse)
               } else if (parsed.error) {
                 callbacks.onError?.(parsed.error)
                 return
@@ -385,7 +419,8 @@ FORMATTING RULES:
 
     // Always call onComplete, even if response is empty
     if (fullResponse) {
-      callbacks.onComplete?.(fullResponse)
+      const finalCleanedResponse = cleanTaskListFormatting(fullResponse)
+      callbacks.onComplete?.(finalCleanedResponse)
     } else {
       // If no response, call onError to reset state
       callbacks.onError?.('No response received from AI. Please try again.')

@@ -80,7 +80,7 @@ IF NO but you've asked 4+ questions: Generate the PRD anyway with what you have 
 
 Keep any questions short, conversational, and easy to answer. Prioritize generating the PRD over perfect information.
 
-FORMATTING: For any task lists or checklists in the PRD, use only ☐ (checkbox symbol) without bullet points. Format as "☐ Task" NOT "- [ ] Task".`
+CRITICAL FORMATTING: For task lists in PRDs, use standard markdown format: "- [ ] Task description". NEVER add extra bullets before checkboxes. FORBIDDEN FORMATS: "• - [ ]", "* - [ ]", "• ☐". Use proper line breaks between tasks for readability.`
   }
 
   try {

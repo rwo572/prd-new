@@ -224,8 +224,37 @@ export default function ChatPanel({
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value)
-    e.target.style.height = 'auto'
-    e.target.style.height = `${e.target.scrollHeight}px`
+    adjustTextareaHeight(e.target)
+  }
+
+  const adjustTextareaHeight = (textarea: HTMLTextAreaElement) => {
+    textarea.style.height = 'auto'
+    const newHeight = Math.min(textarea.scrollHeight, 120) // Max 120px
+    textarea.style.height = `${newHeight}px`
+  }
+
+  // Auto-resize textarea when input changes programmatically
+  useEffect(() => {
+    if (textareaRef.current) {
+      // Always adjust height when input changes, including empty strings
+      const timer = setTimeout(() => {
+        if (textareaRef.current) {
+          adjustTextareaHeight(textareaRef.current)
+        }
+      }, 10)
+      return () => clearTimeout(timer)
+    }
+  }, [input])
+
+  // Also add a manual resize trigger function
+  const triggerResize = () => {
+    if (textareaRef.current) {
+      setTimeout(() => {
+        if (textareaRef.current) {
+          adjustTextareaHeight(textareaRef.current)
+        }
+      }, 50)
+    }
   }
 
   const handleQuickAction = (action: 'full' | 'selection') => {
@@ -403,8 +432,14 @@ export default function ChatPanel({
                 </button>
                 <button
                   onClick={() => {
-                    setInput("Create ONLY a task list section that I can add to my PRD. Return just the ## Tasks section with detailed implementation tasks, NOT a complete PRD rewrite. Format as:\n\n## Tasks\n☐ Task 1\n☐ Task 2\n\nInclude all specifications, development phases, and testing steps.")
+                    const promptText = "Create ONLY a Tasks section in markdown format. Do NOT create a full PRD. Do NOT include Problem Statement, Solution Overview, or any other sections.\n\nReturn EXACTLY this format:\n\n## Tasks\n\n### Phase 1: Setup\n[ ] Task description here\n[ ] Another task description\n\n### Phase 2: Development\n[ ] Development task\n[ ] Another development task\n\n### Phase 3: Testing\n[ ] Testing task\n[ ] Final deployment task\n\nFORMATTING RULES:\n- Use ## for main heading, ### for subheadings\n- Use [ ] for checkboxes with NO bullets, dashes, or other symbols before them\n- FORBIDDEN: '- [ ]', '• [ ]', '* [ ]', or any symbol before [ ]\n- Each task on its own line\n- No duplicate content from existing PRD"
+                    setInput(promptText)
                     setContextMode('full')
+                    // Trigger resize and focus textarea after setting input
+                    setTimeout(() => {
+                      triggerResize()
+                      textareaRef.current?.focus()
+                    }, 20)
                   }}
                   className="w-full text-left px-3 py-2 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 hover:shadow-sm text-xs transition-all duration-200"
                 >
@@ -469,36 +504,98 @@ export default function ChatPanel({
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        // Convert markdown to rich text formatting
-                        h1: ({children}) => <h1 className="text-lg font-bold mt-3 mb-2 break-words">{children}</h1>,
-                        h2: ({children}) => <h2 className="text-base font-semibold mt-3 mb-2 break-words">{children}</h2>,
-                        h3: ({children}) => <h3 className="text-sm font-semibold mt-2 mb-1 break-words">{children}</h3>,
-                        h4: ({children}) => <h4 className="text-sm font-medium mt-2 mb-1 break-words">{children}</h4>,
-                        p: ({children}) => <p className="mb-2 break-words">{children}</p>,
-                        ul: ({children}) => <ul className="list-disc pl-5 mb-2 space-y-1 break-words">{children}</ul>,
-                        ol: ({children}) => <ol className="list-decimal pl-5 mb-2 space-y-1 break-words">{children}</ol>,
-                        li: ({children}) => <li className="text-sm break-words">{children}</li>,
-                        // Keep code blocks as markdown formatting
+                        // Rich text formatting following OpenAI model spec conventions
+                        h1: ({children}) => <h1 className="text-xl font-bold mt-4 mb-3 text-slate-900 leading-tight break-words">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-lg font-semibold mt-4 mb-2 text-slate-800 leading-tight break-words">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-base font-semibold mt-3 mb-2 text-slate-800 leading-tight break-words">{children}</h3>,
+                        h4: ({children}) => <h4 className="text-sm font-medium mt-3 mb-1 text-slate-700 leading-tight break-words">{children}</h4>,
+                        h5: ({children}) => <h5 className="text-sm font-medium mt-2 mb-1 text-slate-700 leading-tight break-words">{children}</h5>,
+                        h6: ({children}) => <h6 className="text-xs font-medium mt-2 mb-1 text-slate-600 leading-tight break-words">{children}</h6>,
+
+                        // Paragraphs with proper spacing and readability
+                        p: ({children}) => <p className="mb-3 text-slate-700 leading-relaxed break-words">{children}</p>,
+
+                        // Enhanced lists with better visual hierarchy
+                        ul: ({children}) => <ul className="list-none pl-0 mb-3 space-y-2 break-words">{children}</ul>,
+                        ol: ({children}) => <ol className="list-decimal pl-6 mb-3 space-y-2 break-words marker:text-slate-500">{children}</ol>,
+                        li: ({children, ...props}: any) => {
+                          const isOrdered = props.ordered;
+                          return (
+                            <li className={cn(
+                              "text-sm text-slate-700 leading-relaxed break-words mb-2",
+                              !isOrdered && "flex items-start gap-2 [&:has(input[type=checkbox])]:before:content-none before:content-['•'] before:text-slate-400 before:font-bold before:mt-0.5"
+                            )}>
+                              {children}
+                            </li>
+                          )
+                        },
+
+                        // Task lists with our custom checkbox styling
+                        input: ({type, checked, ...props}: any) => {
+                          if (type === 'checkbox') {
+                            return (
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled
+                                className="mr-2 mt-1 h-3.5 w-3.5 text-blue-600 bg-slate-100 border-slate-300 rounded focus:ring-blue-500"
+                                {...props}
+                              />
+                            )
+                          }
+                          return <input type={type} {...props} />
+                        },
+
+                        // Code blocks with enhanced styling (preserved as code)
                         code: ({children, ...allProps}: any) => {
                           const isInline = (allProps as any).inline
                           return isInline ? (
-                            <code className="px-1 py-0.5 bg-slate-100 rounded text-xs font-mono break-all">{children}</code>
+                            <code className="px-1.5 py-0.5 bg-slate-100 text-slate-800 rounded text-sm font-mono break-all border">{children}</code>
                           ) : (
-                            <code className="block p-3 bg-slate-100 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">{children}</code>
+                            <code className="block p-4 bg-slate-50 text-slate-800 rounded-lg text-sm font-mono overflow-x-auto whitespace-pre-wrap break-all border border-slate-200 shadow-sm">{children}</code>
                           )
                         },
-                        pre: ({children}) => <pre className="mb-2 overflow-x-auto whitespace-pre-wrap break-words">{children}</pre>,
+                        pre: ({children}) => <pre className="mb-3 overflow-x-auto whitespace-pre-wrap break-words">{children}</pre>,
+
+                        // Enhanced blockquotes
                         blockquote: ({children}) => (
-                          <blockquote className="border-l-4 border-slate-300 pl-3 italic my-2">{children}</blockquote>
+                          <blockquote className="border-l-4 border-blue-200 bg-blue-50 pl-4 pr-4 py-2 my-3 italic text-slate-700 rounded-r-lg">
+                            {children}
+                          </blockquote>
                         ),
-                        // Convert markdown formatting to rich text
-                        strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                        em: ({children}) => <em className="italic">{children}</em>,
+
+                        // Tables with better styling
+                        table: ({children}) => (
+                          <div className="overflow-x-auto my-3">
+                            <table className="min-w-full border border-slate-200 rounded-lg overflow-hidden">
+                              {children}
+                            </table>
+                          </div>
+                        ),
+                        thead: ({children}) => <thead className="bg-slate-50">{children}</thead>,
+                        tbody: ({children}) => <tbody className="divide-y divide-slate-200">{children}</tbody>,
+                        tr: ({children}) => <tr className="hover:bg-slate-50">{children}</tr>,
+                        th: ({children}) => <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{children}</th>,
+                        td: ({children}) => <td className="px-4 py-2 text-sm text-slate-700">{children}</td>,
+
+                        // Text formatting with subtle enhancements
+                        strong: ({children}) => <strong className="font-semibold text-slate-900">{children}</strong>,
+                        em: ({children}) => <em className="italic text-slate-700">{children}</em>,
+
+                        // Links with hover states
                         a: ({href, children}) => (
-                          <a href={href} className="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">
+                          <a
+                            href={href}
+                            className="text-blue-600 hover:text-blue-800 underline decoration-blue-200 hover:decoration-blue-400 transition-colors"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
                             {children}
                           </a>
                         ),
+
+                        // Horizontal rules
+                        hr: () => <hr className="my-4 border-t border-slate-200" />,
                       }}
                     >
                       {message.content}
@@ -685,36 +782,74 @@ export default function ChatPanel({
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        // Convert markdown to rich text formatting for streaming content
-                        h1: ({children}) => <h1 className="text-lg font-bold mt-3 mb-2 break-words">{children}</h1>,
-                        h2: ({children}) => <h2 className="text-base font-semibold mt-3 mb-2 break-words">{children}</h2>,
-                        h3: ({children}) => <h3 className="text-sm font-semibold mt-2 mb-1 break-words">{children}</h3>,
-                        h4: ({children}) => <h4 className="text-sm font-medium mt-2 mb-1 break-words">{children}</h4>,
-                        p: ({children}) => <p className="mb-2 break-words">{children}</p>,
-                        ul: ({children}) => <ul className="list-disc pl-5 mb-2 space-y-1 break-words">{children}</ul>,
-                        ol: ({children}) => <ol className="list-decimal pl-5 mb-2 space-y-1 break-words">{children}</ol>,
-                        li: ({children}) => <li className="text-sm break-words">{children}</li>,
-                        // Keep code blocks as markdown formatting
+                        // Rich text formatting for streaming content (matching OpenAI conventions)
+                        h1: ({children}) => <h1 className="text-xl font-bold mt-4 mb-3 text-slate-900 leading-tight break-words">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-lg font-semibold mt-4 mb-2 text-slate-800 leading-tight break-words">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-base font-semibold mt-3 mb-2 text-slate-800 leading-tight break-words">{children}</h3>,
+                        h4: ({children}) => <h4 className="text-sm font-medium mt-3 mb-1 text-slate-700 leading-tight break-words">{children}</h4>,
+                        h5: ({children}) => <h5 className="text-sm font-medium mt-2 mb-1 text-slate-700 leading-tight break-words">{children}</h5>,
+                        h6: ({children}) => <h6 className="text-xs font-medium mt-2 mb-1 text-slate-600 leading-tight break-words">{children}</h6>,
+                        p: ({children}) => <p className="mb-3 text-slate-700 leading-relaxed break-words">{children}</p>,
+
+                        // Enhanced lists with better visual hierarchy
+                        ul: ({children}) => <ul className="list-none pl-0 mb-3 space-y-2 break-words">{children}</ul>,
+                        ol: ({children}) => <ol className="list-decimal pl-6 mb-3 space-y-2 break-words marker:text-slate-500">{children}</ol>,
+                        li: ({children, ...props}: any) => {
+                          const isOrdered = props.ordered;
+                          return (
+                            <li className={cn(
+                              "text-sm text-slate-700 leading-relaxed break-words mb-2",
+                              !isOrdered && "flex items-start gap-2 [&:has(input[type=checkbox])]:before:content-none before:content-['•'] before:text-slate-400 before:font-bold before:mt-0.5"
+                            )}>
+                              {children}
+                            </li>
+                          )
+                        },
+
+                        // Task lists with custom checkbox styling
+                        input: ({type, checked, ...props}: any) => {
+                          if (type === 'checkbox') {
+                            return (
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled
+                                className="mr-2 mt-1 h-3.5 w-3.5 text-blue-600 bg-slate-100 border-slate-300 rounded focus:ring-blue-500"
+                                {...props}
+                              />
+                            )
+                          }
+                          return <input type={type} {...props} />
+                        },
+
+                        // Code blocks with enhanced styling
                         code: ({children, ...allProps}: any) => {
                           const isInline = (allProps as any).inline
                           return isInline ? (
-                            <code className="px-1 py-0.5 bg-slate-100 rounded text-xs font-mono break-all">{children}</code>
+                            <code className="px-1.5 py-0.5 bg-slate-100 text-slate-800 rounded text-sm font-mono break-all border">{children}</code>
                           ) : (
-                            <code className="block p-3 bg-slate-100 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">{children}</code>
+                            <code className="block p-4 bg-slate-50 text-slate-800 rounded-lg text-sm font-mono overflow-x-auto whitespace-pre-wrap break-all border border-slate-200 shadow-sm">{children}</code>
                           )
                         },
-                        pre: ({children}) => <pre className="mb-2 overflow-x-auto whitespace-pre-wrap break-words">{children}</pre>,
+                        pre: ({children}) => <pre className="mb-3 overflow-x-auto whitespace-pre-wrap break-words">{children}</pre>,
                         blockquote: ({children}) => (
-                          <blockquote className="border-l-4 border-slate-300 pl-3 italic my-2">{children}</blockquote>
+                          <blockquote className="border-l-4 border-blue-200 bg-blue-50 pl-4 pr-4 py-2 my-3 italic text-slate-700 rounded-r-lg">
+                            {children}
+                          </blockquote>
                         ),
-                        // Convert markdown formatting to rich text
-                        strong: ({children}) => <strong className="font-semibold">{children}</strong>,
-                        em: ({children}) => <em className="italic">{children}</em>,
+                        strong: ({children}) => <strong className="font-semibold text-slate-900">{children}</strong>,
+                        em: ({children}) => <em className="italic text-slate-700">{children}</em>,
                         a: ({href, children}) => (
-                          <a href={href} className="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">
+                          <a
+                            href={href}
+                            className="text-blue-600 hover:text-blue-800 underline decoration-blue-200 hover:decoration-blue-400 transition-colors"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
                             {children}
                           </a>
                         ),
+                        hr: () => <hr className="my-4 border-t border-slate-200" />,
                       }}
                     >
                       {streamingContent}
@@ -766,7 +901,8 @@ export default function ChatPanel({
                     ? "Ask about the selected text..."
                     : "Type your message..."
               }
-              className="flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[40px] max-h-[120px] transition-all duration-200 hover:border-slate-300"
+              className="flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[40px] transition-all duration-200 hover:border-slate-300"
+              style={{ maxHeight: '120px' }}
               disabled={isGenerating}
             />
             <button
