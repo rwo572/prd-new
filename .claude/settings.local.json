@@ -41,7 +41,10 @@
       "Bash(cat:*)",
       "WebFetch(domain:cursor.com)",
       "Bash(sudo chown:*)",
-      "Bash(pnpm dlx:*)"
+      "Bash(pnpm dlx:*)",
+      "WebFetch(domain:cdn.openai.com)",
+      "Bash(vercel:*)",
+      "Bash(npm cache clear:*)"
     ],
     "deny": [],
     "ask": []
