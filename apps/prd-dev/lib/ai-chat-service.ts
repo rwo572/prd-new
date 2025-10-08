@@ -14,7 +14,7 @@ export async function generateFollowUp(
   apiKeys: ApiKeys
 ): Promise<string | null> {
   try {
-    const model = getRecommendedModel(apiKeys)
+    const model = getRecommendedModel('chat')
     if (!model) return null
 
     const prompt = `You are a PM assistant. Read the AI's response and give a SHORT (≤20 words) follow-up.
