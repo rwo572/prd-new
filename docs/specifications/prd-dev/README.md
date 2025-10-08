@@ -17,7 +17,7 @@
 - [📏 **Success Metrics**](./06_success_metrics.md) - KPIs, business impact, model performance
 
 ### Safety & Quality
-- [🔒 **Safety & Ethics**](./07_safety_ethics.md) - Safety boundaries, bias mitigation, privacy
+- [🔒 **Safety & Ethics**](./07_safety_ethics_framework.md) - Safety boundaries, bias mitigation, privacy
 - [⚠️ **Edge Cases & Errors**](./08_edge_cases_errors.md) - Edge cases, error handling, graceful degradation
 - [✅ **Quality Assurance**](./09_quality_assurance.md) - Testing strategy, golden dataset, acceptance criteria
 

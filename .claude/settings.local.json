@@ -44,7 +44,9 @@
       "Bash(pnpm dlx:*)",
       "WebFetch(domain:cdn.openai.com)",
       "Bash(vercel:*)",
-      "Bash(npm cache clear:*)"
+      "Bash(npm cache clear:*)",
+      "Bash(xargs kill:*)",
+      "Read(///**)"
     ],
     "deny": [],
     "ask": []

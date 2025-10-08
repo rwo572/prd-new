@@ -337,14 +337,22 @@ export default function EnhancedPRDEditor({
             selectionRange={selectionRange}
             onReplaceText={handleReplaceText}
             onAcceptContent={(newContent, context) => {
+              console.log('✅ Accept clicked', {
+                contentLength: newContent?.length,
+                contextType: context?.type,
+                hasExistingContent: !!content.trim()
+              })
+
               // Clean up task list formatting before insertion
               const cleanedContent = cleanTaskListFormatting(newContent)
+
               if (context?.type === 'selection' && context.selectionStart !== undefined && context.selectionEnd !== undefined) {
                 // Replace the selected text with the new content
                 const before = content.substring(0, context.selectionStart)
                 const after = content.substring(context.selectionEnd)
                 const updatedContent = before + cleanedContent + after
                 onChange(updatedContent)
+                console.log('📝 Replaced selection')
 
                 // Highlight the inserted text
                 setHighlightPosition({
@@ -374,55 +382,39 @@ export default function EnhancedPRDEditor({
                     }
                   }
                 }, 100)
-              } else {
-                // Intelligent content insertion instead of full replacement
-                if (content.trim()) {
-                  // If there's existing content, try to find the best insertion point
-                  let insertionPoint = content.length
+              } else if (context?.type === 'full' || !content.trim()) {
+                // Replace entire content when explicitly requested or editor is empty
+                onChange(cleanedContent)
+                console.log('📝 Replaced entire content')
 
-                  // Look for common PRD sections where tasks should be inserted
-                  const taskSectionPatterns = [
-                    /##?\s*(Implementation|Development|Tasks|Timeline|Roadmap|Action Items)/i,
-                    /##?\s*Next Steps/i,
-                    /##?\s*Appendix/i,
-                    /##?\s*References/i
-                  ]
-
-                  // Try to find the best insertion point
-                  for (const pattern of taskSectionPatterns) {
-                    const match = content.match(pattern)
-                    if (match && match.index !== undefined) {
-                      insertionPoint = match.index
-                      break
-                    }
-                  }
-
-                  // If we found a good insertion point, insert before it
-                  // Otherwise, append to the end
-                  let updatedContent
-                  if (insertionPoint < content.length) {
-                    const before = content.substring(0, insertionPoint)
-                    const after = content.substring(insertionPoint)
-                    updatedContent = before + '\n\n' + cleanedContent + '\n\n' + after
-                  } else {
-                    updatedContent = content + '\n\n' + cleanedContent
-                  }
-
-                  onChange(updatedContent)
-                } else {
-                  // If document is empty, just set the content
-                  onChange(cleanedContent)
+                // Show the editor if it's hidden
+                if (!showEditor) {
+                  setShowEditor(true)
                 }
+              } else {
+                // Default behavior: append to end of document
+                const updatedContent = content.trim()
+                  ? content + '\n\n' + cleanedContent
+                  : cleanedContent
+
+                onChange(updatedContent)
+                console.log('📝 Appended to end of document')
 
                 // Show the editor if it's hidden
                 if (!showEditor) {
                   setShowEditor(true)
                 }
 
-                // Focus editor
+                // Scroll to end and focus editor
                 setTimeout(() => {
-                  if (editorRef.current) {
-                    editorRef.current.focus()
+                  if (editorRef.current && monacoRef.current) {
+                    const model = editorRef.current.getModel()
+                    if (model) {
+                      const lastLine = model.getLineCount()
+                      editorRef.current.setPosition({ lineNumber: lastLine, column: model.getLineMaxColumn(lastLine) })
+                      editorRef.current.revealLineInCenter(lastLine)
+                      editorRef.current.focus()
+                    }
                   }
                 }, 100)
               }

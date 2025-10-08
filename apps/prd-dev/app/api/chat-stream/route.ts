@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
               apiKey,
               modelId,
               controller,
-              encoder
+              encoder,
+              request.signal
             )
           } else if (provider === 'openai') {
             await streamOpenAIResponse(
@@ -29,15 +30,22 @@ export async function POST(request: NextRequest) {
               apiKey,
               modelId,
               controller,
-              encoder
+              encoder,
+              request.signal
             )
           } else {
             throw new Error(`Unsupported provider: ${provider}`)
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Stream error'
+          const isAbortError = error instanceof Error && (error.name === 'AbortError' || errorMessage.includes('aborted'))
+
           try {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errorMessage })}\n\n`))
+            if (isAbortError) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Generation stopped by user' })}\n\n`))
+            } else {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errorMessage })}\n\n`))
+            }
             controller.enqueue(encoder.encode('data: [DONE]\n\n'))
           } catch (e) {
             // Controller might already be closed
@@ -70,11 +78,19 @@ async function streamAnthropicResponse(
   apiKey: string,
   modelId: string,
   controller: ReadableStreamDefaultController,
-  encoder: TextEncoder
+  encoder: TextEncoder,
+  clientSignal?: AbortSignal
 ) {
   // Create AbortController for the API request with longer timeout
   const apiController = new AbortController()
   const apiTimeoutId = setTimeout(() => apiController.abort(), 180000) // 3 minutes
+
+  // Listen for client abort signal
+  if (clientSignal) {
+    clientSignal.addEventListener('abort', () => {
+      apiController.abort()
+    })
+  }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -165,11 +181,19 @@ async function streamOpenAIResponse(
   apiKey: string,
   modelId: string,
   controller: ReadableStreamDefaultController,
-  encoder: TextEncoder
+  encoder: TextEncoder,
+  clientSignal?: AbortSignal
 ) {
   // Create AbortController for the API request with longer timeout
   const apiController = new AbortController()
   const apiTimeoutId = setTimeout(() => apiController.abort(), 180000) // 3 minutes
+
+  // Listen for client abort signal
+  if (clientSignal) {
+    clientSignal.addEventListener('abort', () => {
+      apiController.abort()
+    })
+  }
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

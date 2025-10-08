@@ -18,9 +18,9 @@ export default function ModelSelector({ apiKeys, onModelChange }: ModelSelectorP
     // Set default model based on active provider
     if (!apiKeys.selectedModel) {
       const defaultModel = AI_MODELS.find(m =>
-        m.provider === apiKeys.activeProvider && m.id === 'claude-sonnet-4-20250514'
+        m.provider === apiKeys.activeProvider && m.id === 'claude-sonnet-4-5-20250929'
       ) || AI_MODELS.find(m => m.provider === apiKeys.activeProvider)
-      
+
       if (defaultModel) {
         setSelectedModel(defaultModel)
         onModelChange(defaultModel.id)
@@ -33,6 +33,7 @@ export default function ModelSelector({ apiKeys, onModelChange }: ModelSelectorP
   const availableModels = AI_MODELS.filter(model => {
     if (model.provider === 'openai') return !!apiKeys.openai
     if (model.provider === 'anthropic') return !!apiKeys.anthropic
+    if (model.provider === 'gemini') return !!apiKeys.gemini
     return false
   })
 
@@ -43,7 +44,10 @@ export default function ModelSelector({ apiKeys, onModelChange }: ModelSelectorP
   }
 
   const getProviderIcon = (provider: string) => {
-    return provider === 'openai' ? '🟢' : '🔷'
+    if (provider === 'openai') return '🟢'
+    if (provider === 'anthropic') return '🔷'
+    if (provider === 'gemini') return '🔵'
+    return '🔘'
   }
 
   return (
@@ -121,6 +125,32 @@ export default function ModelSelector({ apiKeys, onModelChange }: ModelSelectorP
                 </div>
               </>
             )}
+
+            {/* Gemini Models */}
+            {availableModels.some(m => m.provider === 'gemini') && (
+              <>
+                <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 sticky top-0 z-10">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <h3 className="text-sm font-semibold text-gray-700">
+                      Google Gemini Models
+                    </h3>
+                  </div>
+                </div>
+                <div className="px-2 py-2 bg-gray-50/50">
+                  {availableModels
+                    .filter(m => m.provider === 'gemini')
+                    .map(model => (
+                      <ModelOption
+                        key={model.id}
+                        model={model}
+                        isSelected={selectedModel?.id === model.id}
+                        onSelect={() => handleModelSelect(model)}
+                      />
+                    ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Model Info */}
@@ -158,16 +188,16 @@ export default function ModelSelector({ apiKeys, onModelChange }: ModelSelectorP
   )
 }
 
-function ModelOption({ 
-  model, 
-  isSelected, 
-  onSelect 
-}: { 
+function ModelOption({
+  model,
+  isSelected,
+  onSelect
+}: {
   model: ModelConfig
   isSelected: boolean
-  onSelect: () => void 
+  onSelect: () => void
 }) {
-  const isLatest = model.id.includes('gpt-5') || model.id.includes('opus-4-1') || model.id.includes('claude-4')
+  const isLatest = model.id.includes('gpt-5') || model.id.includes('opus-4-1') || model.id.includes('sonnet-4-5')
   const isFast = model.id.includes('mini') || model.id.includes('haiku')
   
   return (

@@ -29,7 +29,8 @@ import {
   RotateCcw,
   MessageCircle,
   Undo2,
-  CheckSquare
+  CheckSquare,
+  Upload
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -37,19 +38,22 @@ import { Message } from '@/types'
 import { ApiKeys } from '@/types'
 import { cn } from '@/lib/utils'
 import { generatePromptSuggestions, getQuickPromptSuggestions, PromptSuggestion } from '@/lib/prompt-suggestion-service'
+import { getModelById } from '@/lib/model-config'
 
 interface ChatPanelProps {
   messages: Message[]
-  onSendMessage: (message: string, context?: { 
-    type: 'full' | 'selection', 
+  onSendMessage: (message: string, context?: {
+    type: 'full' | 'selection' | 'file',
     content: string,
     selectionStart?: number,
-    selectionEnd?: number 
+    selectionEnd?: number,
+    fileName?: string
   }) => void
   isGenerating: boolean
   editorContent: string
   selectedText?: string
   selectionRange?: { start: number, end: number }
+  activeFileName?: string
   onReplaceText?: (start: number, end: number, newText: string) => void
   onInsertText?: (position: number, text: string) => void
   onAcceptContent?: (content: string, context?: { type: 'full' | 'selection', selectionStart?: number, selectionEnd?: number }) => void
@@ -57,12 +61,13 @@ interface ChatPanelProps {
   streamingContent?: string
   apiKeys?: ApiKeys
   onClearChat?: () => void
+  onStopGeneration?: () => void
   error?: string | null
 }
 
-export default function ChatPanel({ 
-  messages, 
-  onSendMessage, 
+export default function ChatPanel({
+  messages,
+  onSendMessage,
   isGenerating,
   editorContent,
   selectedText,
@@ -74,6 +79,8 @@ export default function ChatPanel({
   streamingContent = '',
   apiKeys,
   onClearChat,
+  onStopGeneration,
+  activeFileName,
   error
 }: ChatPanelProps) {
   const [input, setInput] = useState('')
@@ -89,6 +96,7 @@ export default function ChatPanel({
   const [undoContext, setUndoContext] = useState<{ messageId: string, content: string, context?: any } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -187,6 +195,81 @@ export default function ChatPanel({
     }
   }, [selectedText, apiKeys, editorContent])
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const fileName = file.name
+    const fileExtension = fileName.split('.').pop()?.toLowerCase()
+
+    // Check if file type is supported
+    if (!['md', 'markdown', 'pdf', 'doc', 'docx'].includes(fileExtension || '')) {
+      alert('Please upload a Markdown (.md), PDF (.pdf), or Word (.doc, .docx) file')
+      return
+    }
+
+    try {
+      const reader = new FileReader()
+
+      reader.onload = async (event) => {
+        const content = event.target?.result as string
+
+        // For markdown files, we can use the content directly
+        if (['md', 'markdown'].includes(fileExtension || '')) {
+          const prompt = `Translate uploaded file to prd.dev structure and generate files.
+
+FILE: ${fileName}
+CONTENT:
+${content}`
+
+          // Send with file context
+          onSendMessage(prompt, {
+            type: 'file',
+            content: content,
+            fileName: fileName
+          })
+        } else if (fileExtension === 'pdf') {
+          const base64Content = btoa(content)
+          const prompt = `Translate PDF to prd.dev structure and generate files.
+
+FILE: ${fileName}`
+
+          onSendMessage(prompt, {
+            type: 'file',
+            content: base64Content,
+            fileName: fileName
+          })
+        } else {
+          const prompt = `Translate Word doc to prd.dev structure and generate files.
+
+FILE: ${fileName}`
+
+          onSendMessage(prompt, {
+            type: 'file',
+            content: content,
+            fileName: fileName
+          })
+        }
+      }
+
+      // Read as text for markdown, as binary string for others
+      if (['md', 'markdown'].includes(fileExtension || '')) {
+        reader.readAsText(file)
+      } else {
+        reader.readAsBinaryString(file)
+      }
+
+    } catch (error) {
+      console.error('Error reading file:', error)
+      alert('Failed to read file. Please try again.')
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (input.trim() && !isGenerating) {
@@ -273,8 +356,52 @@ export default function ChatPanel({
     }
   }
 
+  const getActiveProvider = () => {
+    if (!apiKeys?.selectedModel) return null
+
+    const selectedModel = getModelById(apiKeys.selectedModel)
+    if (!selectedModel) return null
+
+    // Return provider info with specific model name
+    if (selectedModel.provider === 'openai') {
+      return { name: selectedModel.name, icon: '🟢', color: 'text-green-600' }
+    }
+    if (selectedModel.provider === 'anthropic') {
+      return { name: selectedModel.name, icon: '🔷', color: 'text-orange-600' }
+    }
+    if (selectedModel.provider === 'gemini') {
+      return { name: selectedModel.name, icon: '🔵', color: 'text-blue-600' }
+    }
+
+    return null
+  }
+
+  const activeProvider = getActiveProvider()
+
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-white">
+      {/* API Provider Header */}
+      {activeProvider && (
+        <div className="px-3 py-1.5 border-b border-slate-200 bg-white">
+          <div className="flex items-center justify-center gap-1.5">
+            <span className="text-sm">{activeProvider.icon}</span>
+            <span className={`text-xs font-medium ${activeProvider.color}`}>
+              {activeProvider.name}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* File Context Header - New */}
+      <div className="px-3 py-2 border-b border-slate-200 bg-blue-50">
+        <div className="flex items-center justify-center gap-2">
+          <FileText size={14} className="text-blue-600" />
+          <span className="text-xs font-medium text-blue-700">
+            {activeFileName ? `Editing: ${activeFileName}` : 'No file selected'}
+          </span>
+        </div>
+      </div>
+
       {/* Primary Control Row */}
       <div className="px-3 py-2 border-b border-slate-200 bg-slate-50/50">
           <div className="flex items-center gap-2">
@@ -310,16 +437,6 @@ export default function ChatPanel({
 
             {/* Action buttons - Pushed to the right */}
             <div className="flex-1 flex items-center justify-end gap-2">
-              {isGenerating && (
-                <button
-                  onClick={() => window.location.reload()}
-                  className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-all duration-200"
-                  title="Force stop generation"
-                >
-                  <X className="h-3 w-3" />
-                  <span>Stop</span>
-                </button>
-              )}
               {contextMode !== 'none' && (
                 <button
                   onClick={() => {
@@ -351,13 +468,13 @@ export default function ChatPanel({
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="text-center py-8">
-            <div className="w-14 h-14 mx-auto mb-4 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
-              <Bot className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-sm font-medium text-slate-900 mb-2">AI Chat Assistant</h3>
+            <h3 className="text-sm font-medium text-slate-900 mb-3">prd.dev assistant</h3>
+            <p className="text-xs text-slate-600 mb-4 max-w-md mx-auto leading-relaxed">
+              PRD.Dev is continuous documentation. I'll ask you 3-4 questions to understand your product, then generate a comprehensive README as your project foundation. I'll use your README as context that continually gets updated.
+            </p>
 
-            {/* API Key Notice */}
-            {(!apiKeys?.openai && !apiKeys?.anthropic && !apiKeys?.gemini) && (
+            {/* API Key Notice - Only show when NO API key is available */}
+            {!activeProvider && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg max-w-sm mx-auto">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertCircle className="h-4 w-4 text-amber-600" />
@@ -382,9 +499,6 @@ export default function ChatPanel({
               </div>
             )}
 
-            <p className="text-xs text-slate-500 mb-4">
-              I can help you create or improve your PRD. Choose:
-            </p>
             <div className="space-y-3 text-left max-w-xs mx-auto">
               {/* Generate New PRD */}
               <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
@@ -410,6 +524,20 @@ export default function ChatPanel({
                   <RefreshCw className="h-3.5 w-3.5" />
                   Improve Existing PRD
                 </h4>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full text-left px-3 py-2 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 hover:shadow-sm text-xs transition-all duration-200 mb-2"
+                >
+                  <Upload className="h-3 w-3 inline mr-2 text-blue-500" />
+                  Upload requirements file (.md, .pdf, .docx)
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".md,.markdown,.pdf,.doc,.docx"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
                 <button
                   onClick={() => {
                     setInput("How can I make this PRD more comprehensive?")
@@ -607,8 +735,29 @@ export default function ChatPanel({
                   )}
                 </div>
                 
-                {/* Interactive actions for markdown messages and PRD content (but not questions) */}
-                {message.role === 'assistant' && (message.isMarkdown || message.content.includes('[PRD_UPDATE]') || (message.content.includes('# ') && message.content.length > 200)) && message === lastAssistantMessage && !isGenerating && !message.content.includes('?') && (
+                {/* Interactive actions for markdown messages and PRD content */}
+                {(() => {
+                  const shouldShow = message.role === 'assistant' &&
+                    (message.isMarkdown || message.content.includes('[PRD_UPDATE]') || (message.content.includes('# ') && message.content.length > 200)) &&
+                    message === lastAssistantMessage &&
+                    !isGenerating
+
+                  if (message === lastAssistantMessage) {
+                    console.log('🔍 Button render check:', {
+                      role: message.role,
+                      isMarkdown: message.isMarkdown,
+                      hasPRDUpdate: message.content.includes('[PRD_UPDATE]'),
+                      hasHeader: message.content.includes('# '),
+                      length: message.content.length,
+                      isLastMessage: message === lastAssistantMessage,
+                      isGenerating,
+                      shouldShow,
+                      contentPreview: message.content.substring(0, 200)
+                    })
+                  }
+
+                  return shouldShow
+                })() && (
                   <div className="mt-3 pt-3 border-t border-slate-100">
                     {actionStates[message.id] ? (
                       // Show completed state
@@ -906,17 +1055,21 @@ export default function ChatPanel({
               disabled={isGenerating}
             />
             <button
-              type="submit"
-              disabled={!input.trim() || isGenerating}
+              type={isGenerating ? "button" : "submit"}
+              onClick={isGenerating ? onStopGeneration : undefined}
+              disabled={isGenerating ? false : !input.trim()}
               className={cn(
                 "px-3 py-2 rounded-lg transition-all duration-200 shadow-sm",
-                input.trim() && !isGenerating
+                isGenerating
+                  ? "bg-red-500 text-white hover:bg-red-600 hover:shadow-md cursor-pointer"
+                  : input.trim()
                   ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white hover:from-indigo-600 hover:to-blue-600 hover:shadow-md"
                   : "bg-slate-100 text-slate-400 cursor-not-allowed"
               )}
+              title={isGenerating ? "Stop generation" : "Send message"}
             >
               {isGenerating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <X className="w-4 h-4" />
               ) : (
                 <Send className="w-4 h-4" />
               )}

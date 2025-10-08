@@ -65,6 +65,16 @@ export const AI_MODELS: ModelConfig[] = [
   
   // Anthropic Models - Claude 4 Series and Latest versions
   {
+    id: 'claude-sonnet-4-5-20250929',
+    name: 'Claude Sonnet 4.5',
+    provider: 'anthropic',
+    contextWindow: 400000,
+    outputTokens: 16384,
+    bestFor: ['State-of-the-art coding', 'Agent tasks', 'System design', 'Security engineering'],
+    costPer1kTokens: { input: 0.003, output: 0.015 },
+    available: true
+  },
+  {
     id: 'claude-opus-4-1-20250805',
     name: 'Claude Opus 4.1',
     provider: 'anthropic',
@@ -172,7 +182,7 @@ export const AI_MODELS: ModelConfig[] = [
 export const MODEL_RECOMMENDATIONS = {
   'prd-generation': {
     primary: 'claude-opus-4-1-20250805',
-    fallback: 'claude-sonnet-4-20250514',
+    fallback: 'claude-sonnet-4-5-20250929',
     reason: 'Claude Opus 4.1 provides unmatched reasoning and comprehensive PRD generation'
   },
   'quick-questions': {
@@ -186,13 +196,13 @@ export const MODEL_RECOMMENDATIONS = {
     reason: 'Ultimate reasoning capabilities for complex problem solving'
   },
   'code-generation': {
-    primary: 'claude-sonnet-4-20250514',
+    primary: 'claude-sonnet-4-5-20250929',
     fallback: 'gpt-4.1',
-    reason: 'Claude Sonnet 4 has advanced coding capabilities with large context'
+    reason: 'Claude Sonnet 4.5 has state-of-the-art coding capabilities with improved agent features'
   },
   'brainstorming': {
     primary: 'gpt-4.1',
-    fallback: 'claude-sonnet-4-20250514',
+    fallback: 'claude-sonnet-4-5-20250929',
     reason: 'GPT-4.1 offers superior creative and diverse ideation'
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Key, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react'
 import { ApiKeys } from '@/types'
 
@@ -13,6 +13,11 @@ export default function ApiKeyManager({ apiKeys, onUpdateKeys }: ApiKeyManagerPr
   const [showKeys, setShowKeys] = useState({ openai: false, anthropic: false, gemini: false })
   const [tempKeys, setTempKeys] = useState(apiKeys)
   const [saved, setSaved] = useState(false)
+
+  // Update tempKeys when apiKeys prop changes
+  useEffect(() => {
+    setTempKeys(apiKeys)
+  }, [apiKeys])
 
   const handleSave = () => {
     onUpdateKeys(tempKeys)

@@ -7,23 +7,26 @@ import ApiKeyManager from '@/components/ApiKeyManager'
 import ModelSelector from '@/components/model-selector'
 import BoltPrototype from '@/components/BoltPrototype'
 import LandingPage from '@/components/LandingPage'
-import { FileText, Settings, Github, Download, Code2, RefreshCw, Sparkles, Bot } from 'lucide-react'
+import { FileText, Settings, Github, Download, Code2, RefreshCw, Sparkles, Bot, FolderOpen } from 'lucide-react'
 import { PRDContext, Message, ApiKeys } from '@/types'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { generatePRD } from '@/lib/ai-service'
-import { streamChatResponse } from '@/lib/ai-chat-service'
+import { streamChatResponse, generateFollowUp } from '@/lib/ai-chat-service'
 import { exportPRD } from '@/lib/storage'
 import { getModelById } from '@/lib/model-config'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'landing' | 'editor' | 'prototype' | 'settings'>('landing')
+  const [isClient, setIsClient] = useState(false)
+
+  // Persist active tab to localStorage - but only after client hydration
+  const [activeTab, setActiveTab] = useLocalStorage<'landing' | 'editor' | 'prototype' | 'settings'>('active-tab', 'landing')
   const [isGenerating, setIsGenerating] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
-  const [isClient, setIsClient] = useState(false)
   const [prototypeCode, setPrototypeCode] = useLocalStorage<string>('prototype-code', '')
   const [streamingThought, setStreamingThought] = useState('')
   const [streamingContent, setStreamingContent] = useState('')
   const [chatError, setChatError] = useState<string | null>(null)
+  const [abortController, setAbortController] = useState<AbortController | null>(null)
   
   // Use localStorage hooks - will only work on client
   const [messages, setMessages] = useLocalStorage<Message[]>('prd-messages', [])
@@ -68,6 +71,10 @@ export default function Home() {
     setStreamingContent('')
     setChatError(null)
 
+    // Create AbortController for this request
+    const controller = new AbortController()
+    setAbortController(controller)
+
     try {
       // Add a timeout to prevent infinite generating state
       const timeoutId = setTimeout(() => {
@@ -92,18 +99,18 @@ export default function Home() {
           onContent: (content) => {
             setStreamingContent(content)
           },
-          onComplete: (fullResponse) => {
+          onComplete: async (fullResponse) => {
             clearTimeout(timeoutId) // Clear the timeout
-            
+
             // Check if response has the two-part format
             const improvementsMatch = fullResponse.match(/\[IMPROVEMENTS\]([\s\S]*?)\[MARKDOWN_CHANGES\]/);
             const markdownMatch = fullResponse.match(/\[MARKDOWN_CHANGES\]([\s\S]*?)$/);
-            
+
             if (improvementsMatch && markdownMatch) {
               // Split into two messages
               const improvementsContent = improvementsMatch[1].trim();
               const markdownContent = markdownMatch[1].trim();
-              
+
               // Add improvements message (without controls)
               const improvementsMessage: Message = {
                 id: (Date.now() + 1).toString(),
@@ -112,7 +119,7 @@ export default function Home() {
                 timestamp: new Date(),
                 isImprovements: true // Flag to identify this message type
               }
-              
+
               // Add markdown message (with controls)
               const markdownMessage: Message = {
                 id: (Date.now() + 2).toString(),
@@ -121,7 +128,7 @@ export default function Home() {
                 timestamp: new Date(),
                 isMarkdown: true // Flag to identify this message type
               }
-              
+
               setMessages(prev => [...prev, improvementsMessage, markdownMessage])
             } else {
               // Fallback to single message for other responses
@@ -131,10 +138,23 @@ export default function Home() {
                 content: fullResponse,
                 timestamp: new Date()
               }
-              
+
               setMessages(prev => [...prev, aiMessage])
             }
-            
+
+            // Generate conversational follow-up (async, non-blocking)
+            generateFollowUp(content, fullResponse, apiKeys).then(followUp => {
+              if (followUp) {
+                const followUpMessage: Message = {
+                  id: (Date.now() + 10).toString(),
+                  role: 'assistant',
+                  content: followUp,
+                  timestamp: new Date()
+                }
+                setMessages(prev => [...prev, followUpMessage])
+              }
+            }).catch(err => console.error('Follow-up generation failed:', err))
+
             // If working with selection and the response contains improved content,
             // update only that selection
             if (editorContext?.type === 'selection' && editorContext.selectionStart !== undefined) {
@@ -146,7 +166,7 @@ export default function Home() {
                 setPrdContent(before + improvedMatch[1].trim() + after)
               }
             }
-            
+
             // Clear streaming states
             setStreamingThought('')
             setStreamingContent('')
@@ -168,6 +188,20 @@ export default function Home() {
       setIsGenerating(false)
       setStreamingThought('')
       setStreamingContent('')
+    } finally {
+      // Clean up AbortController
+      setAbortController(null)
+    }
+  }
+
+  const handleStopGeneration = () => {
+    if (abortController) {
+      abortController.abort()
+      setAbortController(null)
+      setIsGenerating(false)
+      setStreamingThought('')
+      setStreamingContent('')
+      setChatError('Generation stopped by user.')
     }
   }
 
@@ -249,6 +283,15 @@ export default function Home() {
     }
   }
 
+  // Don't render tabs until client is ready to avoid hydration mismatch
+  if (!isClient) {
+    return (
+      <div className="flex h-screen bg-gradient-to-br from-slate-50 to-white items-center justify-center">
+        <div className="text-slate-400">Loading...</div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-white">
       {/* Collapsed Sidebar - Icons Only - Hidden on Landing Page */}
@@ -277,6 +320,7 @@ export default function Home() {
               Editor
             </span>
           </button>
+
 
           <button
             onClick={() => setActiveTab('prototype')}
@@ -360,6 +404,7 @@ export default function Home() {
             />
           )}
 
+
           {activeTab === 'prototype' && (
             <div className="h-full overflow-hidden bg-white">
               {isGenerating ? (
@@ -415,9 +460,16 @@ export default function Home() {
               <div className="max-w-2xl mx-auto p-6">
                 <h2 className="text-2xl font-bold mb-6">Settings</h2>
 
-                {/* Model Selection Section */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-4">AI Model</h3>
+                {/* Model Selection Section - Moved to top with prominent styling */}
+                <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-100">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">AI Model</h3>
+                  </div>
                   <ModelSelector
                     apiKeys={apiKeys}
                     onModelChange={handleModelChange}
@@ -425,7 +477,8 @@ export default function Home() {
                 </div>
 
                 {/* API Keys Section */}
-                <div className="border-t pt-6">
+                <div className="mb-8 border-t pt-8">
+                  <h3 className="text-lg font-semibold mb-4">API Keys</h3>
                   <ApiKeyManager
                     apiKeys={apiKeys}
                     onUpdateKeys={setApiKeys}

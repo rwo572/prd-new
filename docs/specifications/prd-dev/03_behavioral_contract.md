@@ -435,4 +435,500 @@ Response Type →
 
 ---
 
+## PRD Generation Engine Rules
+
+### Overview
+The multi-file editor includes an AI-powered PRD generation engine that creates comprehensive, stage-appropriate specifications. These rules define how the engine behaves, what questions it asks, and how it structures output.
+
+---
+
+### 1. Stage-First Architecture
+
+**Principle**: Product stage determines everything else - structure, questions, metrics, focus areas.
+
+**Always ask about stage first**:
+- **0→1 (Discovery)**: Creating something new, validating assumptions
+- **1→n (Scaling)**: Growing an existing product, expanding reach
+- **n^x (Optimization)**: Refining mature product, achieving competitive differentiation
+
+**Stage Detection Keywords**:
+```
+0→1: "new", "mvp", "prototype", "0 to 1", "0→1", "idea", "validate"
+1→n: "scale", "grow", "expand", "1 to n", "1→n", "traction"
+n^x: "optimize", "improve", "enhance", "mature", "n^x", "competitive"
+```
+
+**Impact**: Stage selection triggers different:
+- PRD templates (13 modular files)
+- Question sequences
+- Metric priorities
+- Timeline expectations
+- Resource requirements
+
+---
+
+### 2. Minimal Question Flow
+
+**Principle**: Maximum 2-3 questions before generating. Get to value fast.
+
+**Question Sequence**:
+1. **Stage Question** (required): "What stage is your product at?"
+2. **Context Question** (stage-specific): Problem/opportunity/optimization focus
+3. **Refinement Question** (optional): One follow-up for clarity
+
+**Stop Rule**: Generate PRD on 3rd interaction, no exceptions.
+
+**Anti-Pattern**: ❌ Don't create "interview fatigue" with 10+ questions
+
+**Stage-Specific Follow-ups**:
+
+**0→1 Questions**:
+- "What core problem are you solving that hasn't been solved before?"
+- "Who is your beachhead customer segment?"
+- "What's your riskiest assumption to validate?"
+
+**1→n Questions**:
+- "What's currently working that you want to scale?"
+- "What are your growth bottlenecks?"
+- "What's your target growth metric?"
+
+**n^x Questions**:
+- "What optimization metric are you targeting?"
+- "What's your competitive differentiation?"
+- "How much improvement would be meaningful?"
+
+---
+
+### 3. Context Extraction from Messages
+
+**Principle**: Extract implicit information from user messages to reduce explicit questions.
+
+**Auto-Detect Patterns**:
+
+**AI Capability Type**:
+- Generation: "generate", "create", "write", "compose"
+- Classification: "classify", "categorize", "detect", "identify"
+- Recommendation: "recommend", "suggest", "personalize"
+- Analysis: "analyze", "insight", "understand", "explain"
+
+**User Sophistication**:
+- Consumers: "customer", "consumer", "user", "people"
+- Business: "business", "enterprise", "organization", "company"
+- Technical: "developer", "engineer", "technical", "API"
+
+**Success Metric Focus**:
+- Accuracy: "accurate", "correct", "precise", "reliable"
+- Speed: "fast", "quick", "real-time", "instant"
+- Cost: "cheap", "affordable", "budget", "cost-effective"
+- Satisfaction: "delight", "love", "happy", "satisfied"
+
+**Example**:
+```
+Input: "Building an AI tool to help developers analyze code faster"
+Extracted:
+- AI capability: Analysis
+- Target user: Technical users (developers)
+- Success metric: Speed ("faster")
+- Context: Developer tools
+```
+
+---
+
+### 4. Stage-Specific Generation Rules
+
+#### 0→1 (Discovery) Template
+
+**Focus**: Validation, experiments, learning
+**Timeline**: 4-week sprints
+**Budget**: ~$1,000 range
+**Team**: 1-2 people
+
+**Key Sections**:
+- Problem evidence (quantitative + qualitative)
+- Riskiest assumptions
+- MVP scope (extremely limited)
+- Validation experiments
+- Kill criteria (explicit)
+
+**Metrics Priority**:
+1. Activation rate (% completing core workflow)
+2. Time to first value (<5 minutes target)
+3. User satisfaction (>7/10)
+4. Willingness to pay (3+ users commit)
+
+**Tone**: Experimental, hypothesis-driven, lean
+
+---
+
+#### 1→n (Scaling) Template
+
+**Focus**: Growth, infrastructure, retention
+**Timeline**: 6-month roadmap
+**Budget**: $50K-100K/month
+**Team**: 5-10 people
+
+**Key Sections**:
+- What's working (don't break this)
+- Expansion vectors (geographic, segment, use case, platform)
+- Scaling infrastructure requirements
+- Growth feature roadmap
+- Retention strategy
+
+**Metrics Priority**:
+1. Weekly Active Users (WAU)
+2. Week 1 retention (>70%)
+3. Referral rate (>20%)
+4. CAC payback (<6 months)
+
+**Tone**: Operational, systematic, metrics-focused
+
+---
+
+#### n^x (Optimization) Template
+
+**Focus**: Efficiency, differentiation, enterprise
+**Timeline**: 3-year vision with quarterly milestones
+**Budget**: $100K+/month
+**Team**: 20+ people
+
+**Key Sections**:
+- Performance optimization targets (10x improvements)
+- Competitive moat building
+- Enterprise requirements (SOC2, SAML, SLA)
+- Technical excellence initiatives
+- Market leadership strategy
+
+**Metrics Priority**:
+1. Market share (path to #1)
+2. p95 latency (<50ms targets)
+3. Cost efficiency (10x improvement)
+4. Net Revenue Retention (140%+)
+
+**Tone**: Strategic, competitive, excellence-focused
+
+---
+
+### 5. Modular File Structure
+
+**Generate 13 interconnected files**:
+
+```
+README.md                        # Navigation hub with status
+01_problem_definition.md         # Evidence-based problem statement
+02_solution_design.md            # Why AI? Architecture approach
+03_behavioral_contract.md        # AI personality, examples, boundaries
+04_scope_boundaries.md           # In/out scope, non-goals
+05_features_requirements.md      # User stories, acceptance criteria
+06_success_metrics.md            # KPIs, North Star metric
+07_safety_ethics_framework.md    # Hard boundaries, privacy
+08_edge_cases_errors.md          # Edge cases, error handling
+09_quality_assurance.md          # Testing strategy, golden dataset
+10_technical_requirements.md     # Architecture, performance, security
+11_implementation_plan.md        # Milestones, roadmap, rollout
+12_operational_readiness.md      # Monitoring, support, incidents
+13_cost_timeline_risks.md        # Budget, timeline, risk analysis
+```
+
+**File Generation Order**:
+1. README (navigation)
+2. Problem, Solution, Behavioral (core triad)
+3. Scope, Features, Metrics (product definition)
+4. Safety, Edge Cases, Quality (robustness)
+5. Technical, Implementation, Operations (execution)
+6. Cost/Timeline (business planning)
+
+---
+
+### 6. Content Structure Per File
+
+**Markdown Formatting Standards**:
+- Clear H2/H3 hierarchy
+- Tables for structured data
+- Checklists for actionable items
+- Examples with ✅ Good, ❌ Bad, 🚫 Reject patterns
+- Reference links to source guidelines
+
+**Progressive Disclosure**:
+- Start with placeholder: `## Coming Soon\n\nContent for this section will be loaded...`
+- Populate core sections first (Problem, Solution, Behavioral)
+- Allow incremental refinement through chat
+- Maintain "Last Updated" timestamps
+
+**Example Structure**:
+```markdown
+# 01_problem_definition.md
+
+## Core Problem Statement
+> [One clear sentence]
+
+## Problem Evidence
+
+### Quantitative Evidence
+| Metric | Current State | Source | Impact |
+|--------|--------------|--------|--------|
+| ... | ... | ... | ... |
+
+### Qualitative Evidence
+- **User Quote 1**: "[actual quote]" - [User Type, Date]
+
+## Why Now?
+- [ ] New technology enablement
+- [ ] Market shift
+...
+```
+
+---
+
+### 7. AI-Specific Requirements
+
+**When generating AI product specs, include**:
+
+**Behavioral Examples (5-10 minimum)**:
+```markdown
+### Example 1: [Common Scenario]
+
+**User Input**:
+"..."
+
+**Good Response** ✅:
+"..."
+*Why it's good*: [explanation]
+
+**Bad Response** ❌:
+"..."
+*Why it's bad*: [explanation]
+
+**Reject Response** 🚫:
+"..."
+*Trigger conditions*: [when to refuse]
+```
+
+**Safety Boundaries**:
+- Hard boundaries (always block)
+- Soft boundaries (contextual)
+- Escalation paths (human-in-loop)
+- Privacy protections
+
+**Model Specifications**:
+- Temperature setting (creativity vs consistency)
+- Max tokens (input/output limits)
+- Fallback model (reliability)
+- Response time targets
+
+---
+
+### 8. Context-Aware Chat Integration
+
+**File Context Passing**:
+```typescript
+{
+  type: 'file',
+  content: activeFile.content,
+  fileName: activeFile.name
+}
+```
+
+**Chat Behaviors**:
+- Pass active file content as context
+- Enable file-specific refinement
+- Support multi-file coordination
+- Maintain conversation history per project
+
+**Refinement Patterns**:
+- "Update the success metrics section with..."
+- "Add edge cases for team collaboration..."
+- "Clarify the behavioral contract around..."
+
+---
+
+### 9. Template Selection Logic
+
+```typescript
+function generatePRD(context) {
+  const stage = context.productStage || '0-to-1'
+
+  if (stage === '0-to-1') {
+    return generate0to1PRD(context)  // Discovery/Validation focus
+  } else if (stage === '1-to-n') {
+    return generate1toNPRD(context)  // Scaling/Growth focus
+  } else {
+    return generateNtoXPRD(context)  // Optimization/Excellence focus
+  }
+}
+```
+
+**Context Object**:
+```typescript
+{
+  productName: string
+  productStage: '0-to-1' | '1-to-n' | 'n-to-x'
+  aiCapability?: string
+  targetUser?: string
+  successMetric?: string
+  coreProblem?: string
+}
+```
+
+---
+
+### 10. Reference Integration
+
+**All generated content follows**:
+- Base: `/docs/specifications/ai_prd_guidelines/`
+- Master template: `10_ai_prd_master_template.md`
+- Stage assessments: `opportunity-assessment-{stage}.md`
+
+**File Footer Pattern**:
+```markdown
+---
+*References:
+- [AI PRD Guidelines](../../ai_prd_guidelines/)
+- [Master Template](../../ai_prd_guidelines/10_ai_prd_master_template.md)
+- [Stage Assessment](../../ai_prd_guidelines/opportunity-assessment-0to1.md)*
+```
+
+---
+
+### 11. Persistence & State Management
+
+**LocalStorage Keys**:
+```typescript
+'multi-file-prd-store': {
+  files: Record<string, PRDFile>
+  activeFileId: string | null
+  openTabs: string[]
+  fileTree: FileNode[]
+  recentFiles: string[]  // Last 10
+}
+
+'multi-file-recent-projects': string[]  // Last 5 projects
+```
+
+**File State Tracking**:
+- Modified state per file (unsaved changes indicator)
+- Last modified timestamp
+- Content size tracking
+- Recent files list
+
+---
+
+### 12. Quality Standards
+
+**Every generated file must include**:
+
+✅ **Quantitative Targets**: Not just "improve performance" but "reduce p95 latency to <100ms"
+✅ **Concrete Examples**: Not abstract principles, actual scenarios
+✅ **Decision Trees**: For ambiguous situations
+✅ **Success Criteria**: Measurable, time-bound outcomes
+✅ **Rollback/Pivot Criteria**: When to stop or change direction
+
+**Anti-Patterns to Avoid**:
+❌ Generic boilerplate ("This feature will delight users")
+❌ Vague requirements ("Should be fast and reliable")
+❌ Missing acceptance criteria
+❌ No edge case documentation
+❌ Skipped safety boundaries
+
+---
+
+### 13. Iteration Support
+
+**Chat-Driven Refinement**:
+- "Refine the behavioral examples for customer support scenarios"
+- "Add more specific success metrics for enterprise adoption"
+- "Update technical requirements based on real-time collaboration needs"
+
+**Bulk Operations**:
+- Regenerate entire PRD with new stage context
+- Update all files to reflect scope changes
+- Propagate metric changes across sections
+
+**Cross-File Consistency**:
+- Metrics in Section 6 match Implementation Plan milestones
+- Technical Requirements align with Solution Design
+- Edge Cases reference Behavioral Contract examples
+
+---
+
+### 14. Generation Workflow
+
+**Step-by-Step Process**:
+
+1. **Detect Stage**: Extract from user message or ask explicitly
+2. **Gather Context**: Maximum 2 follow-up questions
+3. **Select Template**: Choose 0→1, 1→n, or n^x template
+4. **Generate Files**: Create 13 modular files with stage-appropriate content
+5. **Populate README**: Create navigation hub with current status
+6. **Initialize Store**: Save to localStorage for persistence
+7. **Open First File**: Start with README or Problem Definition
+8. **Enable Chat**: Activate context-aware refinement
+
+---
+
+### 15. Anti-Patterns (Never Do This)
+
+❌ **Don't ask more than 3 questions** before generating
+❌ **Don't generate generic boilerplate** - be specific to user context
+❌ **Don't mix stage-specific content** - 0→1 PRD shouldn't have n^x features
+❌ **Don't skip behavioral examples** for AI products (minimum 5)
+❌ **Don't omit safety boundaries** when handling user data
+❌ **Don't forget kill/pivot criteria** especially for 0→1 products
+❌ **Don't use vague metrics** - specify exact targets with timeframes
+❌ **Don't create orphaned sections** - ensure cross-references work
+❌ **Don't ignore user's stated constraints** - respect budget/timeline/team limits
+❌ **Don't over-engineer for early stages** - 0→1 needs simple, not comprehensive
+
+---
+
+### 16. Example Generation Flow
+
+**User Input**: "I want to build an AI-powered code review assistant"
+
+**AI Response**:
+```
+I'll help you create a PRD for an AI code review assistant. First, let me understand your stage:
+
+**Stage Question**: Are you:
+- 0→1: Creating something new, validating the concept?
+- 1→n: Scaling an existing code review tool?
+- n^x: Optimizing a mature product for competitive edge?
+```
+
+**User**: "It's a new idea, 0→1"
+
+**AI Response**:
+```
+Perfect! For a 0→1 AI code review assistant, let's focus on validation and learning.
+
+**Context Question**: What's the core problem you're solving?
+- Slow manual code reviews?
+- Inconsistent review quality?
+- Knowledge transfer for junior developers?
+- Security vulnerability detection?
+```
+
+**User**: "Junior developers need faster feedback on code quality issues"
+
+**AI Response**:
+```
+Excellent! Generating your 0→1 PRD for an AI code review assistant focused on providing fast feedback to junior developers on code quality...
+
+[Generates 13 files with discovery-focused content, emphasis on:
+- Problem: Junior dev feedback loops too slow
+- MVP: Basic code quality checks (5-10 rules)
+- Validation: 10 junior devs complete review in <2 weeks
+- Kill criteria: If <5/10 find it useful after 4 weeks
+- Budget: $1K for APIs + hosting
+- Timeline: 4-week experiment]
+```
+
+---
+
+*References:
+- [AI PRD Master Template](../../ai_prd_guidelines/10_ai_prd_master_template.md)
+- [Behavioral Contract Guidelines](../../ai_prd_guidelines/01_behavioral_contract_definition.md)
+- [Implementation Source](../../../apps/prd-dev/lib/ai-prd-guidelines.ts)*
+
+---
+
 *Cross-references: [Problem Definition](./01_problem_definition.md) | [Quality Assurance](./09_quality_assurance.md) | [Safety & Ethics](./07_safety_ethics.md)*

@@ -383,6 +383,57 @@ And allow screenshot capture for documentation
 4. **Model Performance Criteria** (30 min): Set accuracy, latency, and quality thresholds
 5. **Prototype with AI Simulation** (45 min): Generate prototype with mock AI behavior
 
+### F012: GitHub-Style Multi-File Editor
+**Priority**: P0 (Critical)
+**Description**: Professional file-based editor with tree navigation for modular PRD editing
+
+#### File Management Features
+- **File Tree Explorer**: Hierarchical navigation of PRD modules (01-13 sections + README)
+- **Multi-Tab Interface**: Open multiple files simultaneously with tab management
+- **Command Palette**: Fuzzy file search and quick actions (Cmd+P/Ctrl+P)
+- **File Operations**: Create, rename, delete files through UI and context menus
+
+#### Layout System
+- **Resizable Panels**: File tree (left), editor + tabs (center), chat (right), linter (bottom)
+- **Panel Persistence**: Remember layout preferences across sessions
+- **Responsive Design**: Adaptive panel sizing for different screen sizes
+- **Panel Toggle**: Show/hide panels with keyboard shortcuts and UI controls
+
+#### Context-Aware Features
+- **File-Scoped Chat**: AI assistant understands current file context
+- **Cross-File References**: Navigate between related PRD sections
+- **File-Specific Linting**: Scoped analysis per file or project-wide
+- **Auto-Save**: Real-time persistence to localStorage per file
+
+#### Professional UX
+- **VS Code-Style Interface**: Familiar developer experience with file icons
+- **Unsaved Changes Indicators**: Visual feedback for modified files
+- **Tab Context Menu**: Close, close others, close all actions
+- **File Status Icons**: Modified, new, error states
+
+#### Migration Strategy
+- **Option A Implementation**: New "Multi-File Editor" tab alongside existing editor
+- **Backward Compatibility**: Existing single-file workflow preserved
+- **Data Migration**: Automatic import of existing content into modular structure
+
+#### Technical Requirements
+- **Dependencies**: react-resizable-panels, cmdk for command palette
+- **File System Store**: Local state management mapping to 13 PRD sections
+- **Performance**: <100ms file switching, <500ms command palette response
+- **Memory**: Efficient loading of only active files in Monaco
+
+#### Acceptance Criteria
+```
+Given I have a modular PRD with 13 sections
+When I open the Multi-File Editor
+Then I should see a file tree with all sections
+And be able to open multiple files in tabs
+And navigate quickly using Cmd+P fuzzy search
+And have the chat understand which file I'm editing
+And see unsaved changes clearly indicated
+And experience smooth 60fps panel resizing
+```
+
 ## Technical Requirements
 
 ### Performance Requirements
@@ -407,7 +458,7 @@ And allow screenshot capture for documentation
 - **WebContainer sandboxing**: Isolated code execution environment
 
 ### Integration Requirements
-- **Multi-model AI**: OpenAI GPT-4, Anthropic Claude, Google Gemini
+- **Multi-model AI**: OpenAI, Anthropic Claude, Google Gemini
 - **Version Control**: Git-compatible file formats and workflows
 - **Export Formats**: React, Vue, HTML/CSS, Figma specifications
 - **Development Tools**: Integration with VS Code, Cursor, other editors
